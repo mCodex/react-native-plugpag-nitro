@@ -135,22 +135,9 @@ const payment = await doPayment({
 
 ### Android Configuration
 
-The library automatically includes the PlugPag wrapper, but you need to ensure Kotlin support:
-
-#### 1. Add Kotlin support to `android/build.gradle`:
-
-```groovy
-buildscript {
-    ext.kotlin_version = '1.9.0'
-    dependencies {
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-    }
-}
-```
-
-#### 2. That's it! 🎉
-
 The PlugPag wrapper (`br.com.uol.pagseguro.plugpagservice.wrapper:wrapper:1.30.51`) is automatically included as a dependency.
+
+That's it! No additional setup is required for the wrapper.
 
 ---
 
