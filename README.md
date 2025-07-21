@@ -389,35 +389,6 @@ try {
 
 ---
 
-## 🏗️ Migration from Old API
-
-### Before (number-based)
-```typescript
-// Old approach with magic numbers
-const result = await doPayment({
-  amount: 2500,
-  type: 1, // What does 1 mean?
-  installmentType: 3, // What does 3 mean?
-  installments: 1
-});
-```
-
-### After (enum-based)
-```typescript
-// New approach with type-safe enums
-const result = await doPayment({
-  amount: 2500,
-  type: PaymentType.CREDIT, // Clear and type-safe
-  installmentType: InstallmentType.BUYER_INSTALLMENT, // Self-documenting
-  installments: 1
-});
-
-// Or use presets for common scenarios
-const result = await doPayment(PaymentPresets.creditCard(2500, 1));
-```
-
----
-
 ## 🤝 Contributing
 
 ```bash
