@@ -13,6 +13,7 @@ import {
 import {
   useTransactionPaymentEvent,
   doPayment,
+  doPixPaymentWithUI,
   usePaymentWithCancellation,
   initializeAndActivatePinPad,
   refundPayment,
@@ -137,6 +138,49 @@ export default function App() {
     },
     [startPayment, handleError]
   );
+
+  // Enhanced PIX payment with custom UI
+  const handlePixPaymentWithUI = useCallback(async () => {
+    try {
+      const result = await doPixPaymentWithUI(
+        2500, // R$ 25,00
+        {
+          messages: {
+            insertCard: '📱 Aproxime seu celular ou cartão para PIX',
+            processing: '⏳ Processando PIX...',
+            approved: '✅ PIX aprovado! Transação concluída',
+            declined: '❌ PIX não autorizado',
+          },
+          behavior: {
+            showDefaultUI: true,
+            allowCancellation: true,
+            timeoutSeconds: 120,
+          },
+          styling: {
+            primaryColor: '#32D74B', // PIX green
+            backgroundColor: '#F8F9FA',
+            textColor: '#212529',
+          },
+        },
+        'pix-ui-demo'
+      );
+
+      setLastPayment(result);
+
+      if (!isPaymentSuccessful(result)) {
+        const errorMessage = getPaymentErrorMessage(result);
+        Alert.alert(
+          'PIX não autorizado',
+          errorMessage || 'Transação PIX não foi aprovada'
+        );
+        return;
+      }
+
+      Alert.alert('PIX Aprovado!', 'Pagamento PIX realizado com sucesso! 🎉');
+    } catch (error) {
+      handleError(error, 'PIX com UI');
+    }
+  }, [handleError]);
 
   // Handle cancellation
   const handleCancelPayment = useCallback(async () => {
@@ -341,6 +385,16 @@ export default function App() {
         >
           <Text style={[styles.textButton, styles.uiText]}>
             Pagar {formatCurrency(2500)} no débito com UI
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={handlePixPaymentWithUI}
+          style={[styles.button, styles.space, styles.pixUIButton]}
+          disabled={isProcessing}
+        >
+          <Text style={[styles.textButton, styles.pixUIText]}>
+            💰 Pagar {formatCurrency(2500)} via PIX com UI
           </Text>
         </TouchableOpacity>
 
@@ -565,6 +619,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF3B30',
   },
   cancelText: {
+    color: '#FFFFFF',
+  },
+  pixUIButton: {
+    borderColor: '#32D74B',
+    backgroundColor: '#32D74B',
+  },
+  pixUIText: {
     color: '#FFFFFF',
   },
 });

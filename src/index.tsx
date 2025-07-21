@@ -16,6 +16,7 @@ import type {
   UIState,
   UIStateEvent,
 } from './PlugpagNitro.nitro';
+import { PaymentPresets } from './utils';
 
 const PlugpagNitroModule =
   NitroModules.createHybridObject<PlugpagNitro>('PlugpagNitro');
@@ -187,6 +188,45 @@ export async function doPayment(
       paymentRequest.userReference || ''
     )
   );
+}
+
+/**
+ * Process a PIX payment with enhanced UI control
+ * @param amount Amount in cents
+ * @param uiConfiguration Optional UI configuration for PIX-specific experience
+ * @param userReference Optional user reference
+ */
+export async function doPixPaymentWithUI(
+  amount: number,
+  uiConfiguration?: PlugpagUIConfiguration,
+  userReference?: string
+): Promise<PlugpagTransactionResult> {
+  const pixUIConfig: PlugpagUIConfiguration = {
+    messages: {
+      insertCard: 'Aproxime seu celular ou cartão para PIX',
+      processing: 'Processando pagamento PIX...',
+      approved: 'PIX aprovado com sucesso!',
+      declined: 'PIX não autorizado',
+      ...uiConfiguration?.messages,
+    },
+    behavior: {
+      showDefaultUI: true,
+      allowCancellation: true,
+      timeoutSeconds: 90, // PIX typically has shorter timeout
+      ...uiConfiguration?.behavior,
+    },
+    styling: {
+      primaryColor: '#32D74B', // PIX green
+      backgroundColor: '#F2F2F7',
+      textColor: '#000000',
+      ...uiConfiguration?.styling,
+    },
+  };
+
+  return doPaymentWithUI({
+    ...PaymentPresets.pix(amount, userReference),
+    uiConfiguration: pixUIConfig,
+  });
 }
 
 /**
