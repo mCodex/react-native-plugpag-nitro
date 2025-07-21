@@ -4,51 +4,29 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import com.facebook.proguard.annotations.DoNotStrip
-import com.facebook.react.bridge.ReactApplicationContext
-import com.facebook.react.bridge.Arguments
-import com.facebook.react.bridge.WritableMap
-import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.margelo.nitro.core.Promise
 import com.margelo.nitro.NitroModules
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPag
 import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPagActivationData
-import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPagEventData
-import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPagEventListener
-import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPagInitializationResult
 import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPagPaymentData
 import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPagPrintResult
 import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPagPrinterData
 import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPagPrinterListener
-import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPagTransactionResult
 import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPagVoidData
-import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPagAbortResult
 import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPagNearFieldCardData
 
 @DoNotStrip
 class PlugpagNitro : HybridPlugpagNitroSpec() {
   
   private lateinit var plugPag: PlugPag
-  private var countPassword = 0
-  private var messageCard = ""
-  
-  // UI Configuration
-  private var showDefaultUI = true
-  private var allowCancellation = true
-  private var defaultTimeoutSeconds = 60
-  private var customMessages = mutableMapOf<String, String>()
-  
-  // Cancellation management
-  private val activeCancellationTokens = mutableSetOf<String>()
-  private val cancellationCallbacks = mutableMapOf<String, () -> Unit>()
+  private lateinit var taskManager: TaskManager
+  private lateinit var uiStateManager: UIStateManager
+  private lateinit var paymentEventHandler: PaymentEventHandler
 
   companion object {
     private const val TAG = "PlugpagNitro"
-    private const val EVENT_PAYMENTS = "eventPayments"
-    private const val EVENT_UI_STATE = "eventUIState"
   }
 
   override fun getConstants(): PlugpagConstants {
@@ -102,21 +80,23 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
 
   override fun initializeAndActivatePinPad(activationCode: String): Promise<PlugpagInitializationResult> {
     return Promise.async {
-      withContext(Dispatchers.IO) {
-        try {
-          initializePlugPag()
-          
-          val activationData = PlugPagActivationData(activationCode)
-          val result = plugPag.initializeAndActivatePinpad(activationData)
-          
-          PlugpagInitializationResult(
-            result = result.result.toDouble(),
-            errorCode = result.errorCode ?: "",
-            errorMessage = result.errorMessage ?: ""
-          )
-        } catch (e: Exception) {
-          Log.e(TAG, "Error initializing pin pad", e)
-          throw Exception("INITIALIZATION_ERROR: ${e.message ?: "Unknown error"}")
+      taskManager.executeSecureTask(TaskManager.TaskType.INITIALIZATION, TaskManager.TaskPriority.HIGH) {
+        withContext(Dispatchers.IO) {
+          try {
+            initializePlugPag()
+            
+            val activationData = PlugPagActivationData(activationCode)
+            val result = plugPag.initializeAndActivatePinpad(activationData)
+            
+            PlugpagInitializationResult(
+              result = result.result.toDouble(),
+              errorCode = result.errorCode ?: "",
+              errorMessage = result.errorMessage ?: ""
+            )
+          } catch (e: Exception) {
+            Log.e(TAG, "Error initializing pin pad", e)
+            throw Exception("INITIALIZATION_ERROR: ${e.message ?: "Unknown error"}")
+          }
         }
       }
     }
@@ -131,133 +111,11 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
     userReference: String
   ): Promise<PlugpagTransactionResult> {
     return Promise.async {
-      withContext(Dispatchers.IO) {
-        try {
-          initializePlugPag()
-          setupPaymentEventListener()
-          
-          val plugPagPaymentData = PlugPagPaymentData(
-            type.toInt(),
-            amount.toInt(),
-            installmentType.toInt(),
-            installments.toInt(),
-            userReference,
-            printReceipt
-          )
-          
-          val result = plugPag.doPayment(plugPagPaymentData)
-          
-          PlugpagTransactionResult(
-            result = result.result?.toDouble() ?: 0.0,
-            errorCode = result.errorCode ?: "",
-            message = result.message ?: "",
-            transactionCode = result.transactionCode ?: "",
-            transactionId = result.transactionId ?: "",
-            hostNsu = result.hostNsu ?: "",
-            date = result.date ?: "",
-            time = result.time ?: "",
-            cardBrand = result.cardBrand ?: "",
-            bin = result.bin ?: "",
-            holder = result.holder ?: "",
-            userReference = result.userReference ?: "",
-            terminalSerialNumber = result.terminalSerialNumber ?: "",
-            amount = result.amount ?: "",
-            availableBalance = result.availableBalance ?: "",
-            cardApplication = result.cardApplication ?: "",
-            label = result.label ?: "",
-            holderName = result.holderName ?: "",
-            extendedHolderName = result.extendedHolderName ?: ""
-          )
-        } catch (e: Exception) {
-          Log.e(TAG, "Error processing payment", e)
-          throw Exception("PAYMENT_ERROR: ${e.message ?: "Unknown error"}")
-        }
-      }
-    }
-  }
-
-  override fun voidPayment(
-    transactionCode: String,
-    transactionId: String,
-    printReceipt: Boolean
-  ): Promise<PlugpagTransactionResult> {
-    return Promise.async {
-      withContext(Dispatchers.IO) {
-        try {
-          initializePlugPag()
-          setupPaymentEventListener()
-          
-          val plugPagVoidData = PlugPagVoidData(
-            transactionCode,
-            transactionId,
-            printReceipt
-          )
-          
-          val result = plugPag.voidPayment(plugPagVoidData)
-          
-          PlugpagTransactionResult(
-            result = result.result?.toDouble() ?: 0.0,
-            errorCode = result.errorCode ?: "",
-            message = result.message ?: "",
-            transactionCode = result.transactionCode ?: "",
-            transactionId = result.transactionId ?: "",
-            hostNsu = result.hostNsu ?: "",
-            date = result.date ?: "",
-            time = result.time ?: "",
-            cardBrand = result.cardBrand ?: "",
-            bin = result.bin ?: "",
-            holder = result.holder ?: "",
-            userReference = result.userReference ?: "",
-            terminalSerialNumber = result.terminalSerialNumber ?: "",
-            amount = result.amount ?: "",
-            availableBalance = result.availableBalance ?: "",
-            cardApplication = result.cardApplication ?: "",
-            label = result.label ?: "",
-            holderName = result.holderName ?: "",
-            extendedHolderName = result.extendedHolderName ?: ""
-          )
-        } catch (e: Exception) {
-          Log.e(TAG, "Error processing void payment", e)
-          throw Exception("VOID_PAYMENT_ERROR: ${e.message ?: "Unknown error"}")
-        }
-      }
-    }
-  }
-
-  override fun doPaymentWithUI(
-    amount: Double,
-    type: Double,
-    installmentType: Double,
-    installments: Double,
-    printReceipt: Boolean,
-    userReference: String,
-    showDefaultUI: Boolean,
-    allowCancellation: Boolean,
-    timeoutSeconds: Double,
-    cancellationToken: String
-  ): Promise<PlugpagTransactionResult> {
-    return Promise.async {
-      withContext(Dispatchers.IO) {
-        try {
-          initializePlugPag()
-          
-          // Register cancellation token
-          if (allowCancellation) {
-            activeCancellationTokens.add(cancellationToken)
-          }
-          
-          // Setup UI configuration for this payment
-          val originalShowDefaultUI = this@PlugpagNitro.showDefaultUI
-          val originalAllowCancellation = this@PlugpagNitro.allowCancellation
-          
-          this@PlugpagNitro.showDefaultUI = showDefaultUI
-          this@PlugpagNitro.allowCancellation = allowCancellation
-          
+      taskManager.executeSecureTask(TaskManager.TaskType.PAYMENT) {
+        withContext(Dispatchers.IO) {
           try {
+            initializePlugPag()
             setupPaymentEventListener()
-            
-            // Emit UI state change
-            emitUIStateEvent("PAYMENT_STARTED", cancellationToken, allowCancellation)
             
             val plugPagPaymentData = PlugPagPaymentData(
               type.toInt(),
@@ -268,25 +126,7 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
               printReceipt
             )
             
-            // Set up cancellation callback
-            if (allowCancellation) {
-              cancellationCallbacks[cancellationToken] = {
-                try {
-                  plugPag.abort()
-                  emitUIStateEvent("PAYMENT_CANCELLED", cancellationToken, allowCancellation)
-                } catch (e: Exception) {
-                  Log.e(TAG, "Error cancelling payment", e)
-                }
-              }
-            }
-            
             val result = plugPag.doPayment(plugPagPaymentData)
-            
-            // Clean up cancellation token
-            activeCancellationTokens.remove(cancellationToken)
-            cancellationCallbacks.remove(cancellationToken)
-            
-            emitUIStateEvent("PAYMENT_COMPLETED", cancellationToken, allowCancellation)
             
             PlugpagTransactionResult(
               result = result.result?.toDouble() ?: 0.0,
@@ -309,19 +149,163 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
               holderName = result.holderName ?: "",
               extendedHolderName = result.extendedHolderName ?: ""
             )
-          } finally {
-            // Restore original UI settings
-            this@PlugpagNitro.showDefaultUI = originalShowDefaultUI
-            this@PlugpagNitro.allowCancellation = originalAllowCancellation
+          } catch (e: Exception) {
+            Log.e(TAG, "Error processing payment", e)
+            throw Exception("PAYMENT_ERROR: ${e.message ?: "Unknown error"}")
           }
-        } catch (e: Exception) {
-          // Clean up on error
-          activeCancellationTokens.remove(cancellationToken)
-          cancellationCallbacks.remove(cancellationToken)
-          emitUIStateEvent("PAYMENT_ERROR", cancellationToken, allowCancellation)
-          
-          Log.e(TAG, "Error processing payment with UI", e)
-          throw Exception("PAYMENT_ERROR: ${e.message ?: "Unknown error"}")
+        }
+      }
+    }
+  }
+
+  override fun voidPayment(
+    transactionCode: String,
+    transactionId: String,
+    printReceipt: Boolean
+  ): Promise<PlugpagTransactionResult> {
+    return Promise.async {
+      taskManager.executeSecureTask(TaskManager.TaskType.VOID_PAYMENT, TaskManager.TaskPriority.HIGH) {
+        withContext(Dispatchers.IO) {
+          try {
+            initializePlugPag()
+            setupPaymentEventListener()
+            
+            val plugPagVoidData = PlugPagVoidData(
+              transactionCode,
+              transactionId,
+              printReceipt
+            )
+            
+            val result = plugPag.voidPayment(plugPagVoidData)
+            
+            PlugpagTransactionResult(
+              result = result.result?.toDouble() ?: 0.0,
+              errorCode = result.errorCode ?: "",
+              message = result.message ?: "",
+              transactionCode = result.transactionCode ?: "",
+              transactionId = result.transactionId ?: "",
+              hostNsu = result.hostNsu ?: "",
+              date = result.date ?: "",
+              time = result.time ?: "",
+              cardBrand = result.cardBrand ?: "",
+              bin = result.bin ?: "",
+              holder = result.holder ?: "",
+              userReference = result.userReference ?: "",
+              terminalSerialNumber = result.terminalSerialNumber ?: "",
+              amount = result.amount ?: "",
+              availableBalance = result.availableBalance ?: "",
+              cardApplication = result.cardApplication ?: "",
+              label = result.label ?: "",
+              holderName = result.holderName ?: "",
+              extendedHolderName = result.extendedHolderName ?: ""
+            )
+          } catch (e: Exception) {
+            Log.e(TAG, "Error processing void payment", e)
+            throw Exception("VOID_PAYMENT_ERROR: ${e.message ?: "Unknown error"}")
+          }
+        }
+      }
+    }
+  }
+
+  override fun doPaymentWithUI(
+    amount: Double,
+    type: Double,
+    installmentType: Double,
+    installments: Double,
+    printReceipt: Boolean,
+    userReference: String,
+    showDefaultUI: Boolean,
+    allowCancellation: Boolean,
+    timeoutSeconds: Double,
+    cancellationToken: String
+  ): Promise<PlugpagTransactionResult> {
+    return Promise.async {
+      taskManager.executeSecureTask(TaskManager.TaskType.PAYMENT) {
+        withContext(Dispatchers.IO) {
+          try {
+            initializePlugPag()
+            
+            // Setup UI configuration for this payment
+            val originalShowDefaultUI = uiStateManager.getShowDefaultUI()
+            val originalAllowCancellation = uiStateManager.getAllowCancellation()
+            
+            uiStateManager.configureUI(
+              showDefaultUI = showDefaultUI,
+              allowCancellation = allowCancellation,
+              timeoutSeconds = timeoutSeconds.toInt()
+            )
+            
+            // Register cancellation token
+            if (allowCancellation) {
+              uiStateManager.registerCancellationToken(cancellationToken) {
+                try {
+                  plugPag.abort()
+                  uiStateManager.emitUIStateEvent("PAYMENT_CANCELLED", cancellationToken, allowCancellation)
+                } catch (e: Exception) {
+                  Log.e(TAG, "Error cancelling payment", e)
+                }
+              }
+            }
+            
+            try {
+              setupPaymentEventListener()
+              
+              // Emit UI state change
+              uiStateManager.emitUIStateEvent("PAYMENT_STARTED", cancellationToken, allowCancellation)
+              
+              val plugPagPaymentData = PlugPagPaymentData(
+                type.toInt(),
+                amount.toInt(),
+                installmentType.toInt(),
+                installments.toInt(),
+                userReference,
+                printReceipt
+              )
+              
+              val result = plugPag.doPayment(plugPagPaymentData)
+              
+              // Clean up cancellation token
+              uiStateManager.cleanupCancellationToken(cancellationToken)
+              
+              uiStateManager.emitUIStateEvent("PAYMENT_COMPLETED", cancellationToken, allowCancellation)
+              
+              PlugpagTransactionResult(
+                result = result.result?.toDouble() ?: 0.0,
+                errorCode = result.errorCode ?: "",
+                message = result.message ?: "",
+                transactionCode = result.transactionCode ?: "",
+                transactionId = result.transactionId ?: "",
+                hostNsu = result.hostNsu ?: "",
+                date = result.date ?: "",
+                time = result.time ?: "",
+                cardBrand = result.cardBrand ?: "",
+                bin = result.bin ?: "",
+                holder = result.holder ?: "",
+                userReference = result.userReference ?: "",
+                terminalSerialNumber = result.terminalSerialNumber ?: "",
+                amount = result.amount ?: "",
+                availableBalance = result.availableBalance ?: "",
+                cardApplication = result.cardApplication ?: "",
+                label = result.label ?: "",
+                holderName = result.holderName ?: "",
+                extendedHolderName = result.extendedHolderName ?: ""
+              )
+            } finally {
+              // Restore original UI settings
+              uiStateManager.configureUI(
+                showDefaultUI = originalShowDefaultUI,
+                allowCancellation = originalAllowCancellation
+              )
+            }
+          } catch (e: Exception) {
+            // Clean up on error
+            uiStateManager.cleanupCancellationToken(cancellationToken)
+            uiStateManager.emitUIStateEvent("PAYMENT_ERROR", cancellationToken, allowCancellation)
+            
+            Log.e(TAG, "Error processing payment with UI", e)
+            throw Exception("PAYMENT_ERROR: ${e.message ?: "Unknown error"}")
+          }
         }
       }
     }
@@ -329,38 +313,19 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
 
   override fun cancelPayment(cancellationToken: String): Promise<PlugpagCancellationResult> {
     return Promise.async {
-      withContext(Dispatchers.IO) {
-        try {
-          if (!activeCancellationTokens.contains(cancellationToken)) {
-            PlugpagCancellationResult(
-              success = false,
-              message = "No active operation with this token"
-            )
-          } else {
-            val callback = cancellationCallbacks[cancellationToken]
-            if (callback != null) {
-              callback.invoke()
-              activeCancellationTokens.remove(cancellationToken)
-              cancellationCallbacks.remove(cancellationToken)
-              
-              PlugpagCancellationResult(
-                success = true,
-                message = "Operation cancelled by user"
-              )
-            } else {
-              PlugpagCancellationResult(
-                success = false,
-                message = "No cancellation callback available"
-              )
-            }
-          }
-        } catch (e: Exception) {
-          Log.e(TAG, "Error cancelling payment", e)
-          PlugpagCancellationResult(
-            success = false,
-            message = "Error during cancellation: ${e.message}"
-          )
-        }
+      try {
+        val success = uiStateManager.executeCancellation(cancellationToken)
+        
+        PlugpagCancellationResult(
+          success = success,
+          message = if (success) "Payment cancelled successfully" else "Failed to cancel payment or token not found"
+        )
+      } catch (e: Exception) {
+        Log.e(TAG, "Error cancelling payment", e)
+        PlugpagCancellationResult(
+          success = false,
+          message = "CANCELLATION_ERROR: ${e.message ?: "Unknown error"}"
+        )
       }
     }
   }
@@ -373,24 +338,25 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
   ): Promise<Boolean> {
     return Promise.async {
       try {
-        this@PlugpagNitro.showDefaultUI = showDefaultUI
-        this@PlugpagNitro.allowCancellation = allowCancellation
-        this@PlugpagNitro.defaultTimeoutSeconds = timeoutSeconds.toInt()
-        
-        // Parse custom messages JSON
-        try {
-          // Simple JSON parsing for custom messages
-          // In a real implementation, you might want to use a proper JSON library
-          this@PlugpagNitro.customMessages.clear()
-          if (customMessages.isNotEmpty() && customMessages != "{}") {
-            // Basic parsing - in production, use proper JSON parsing
-            Log.d(TAG, "Custom messages configured: $customMessages")
+        // Parse custom messages JSON if provided
+        val messagesMap = if (customMessages.isNotBlank()) {
+          try {
+            parseCustomMessagesJson(customMessages)
+          } catch (e: Exception) {
+            Log.e(TAG, "Error parsing custom messages JSON: ${e.message}", e)
+            // For payment security, we fail gracefully but log the error
+            mapOf<String, String>()
           }
-        } catch (e: Exception) {
-          Log.w(TAG, "Error parsing custom messages", e)
+        } else {
+          mapOf<String, String>()
         }
         
-        Log.d(TAG, "UI configured - showDefaultUI: $showDefaultUI, allowCancellation: $allowCancellation")
+        uiStateManager.configureUI(
+          showDefaultUI = showDefaultUI,
+          allowCancellation = allowCancellation,
+          timeoutSeconds = timeoutSeconds.toInt(),
+          customMessages = messagesMap
+        )
         true
       } catch (e: Exception) {
         Log.e(TAG, "Error configuring UI", e)
@@ -401,14 +367,19 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
 
   override fun doAbort(): Promise<PlugpagAbortResult> {
     return Promise.async {
-      withContext(Dispatchers.IO) {
-        try {
-          initializePlugPag()
-          val result = plugPag.abort()
-          PlugpagAbortResult(result = result.result == PlugPag.RET_OK)
-        } catch (e: Exception) {
-          Log.e(TAG, "Error aborting transaction", e)
-          throw Exception("ABORT_ERROR: ${e.message ?: "Unknown error"}")
+      taskManager.executeSecureTask(TaskManager.TaskType.ABORT, TaskManager.TaskPriority.CRITICAL) {
+        withContext(Dispatchers.IO) {
+          try {
+            val result = plugPag.abort()
+            uiStateManager.cleanupAllCancellationTokens()
+            
+            PlugpagAbortResult(
+              result = result.result == PlugPag.RET_OK
+            )
+          } catch (e: Exception) {
+            Log.e(TAG, "Error aborting operation", e)
+            throw Exception("ABORT_ERROR: ${e.message ?: "Unknown error"}")
+          }
         }
       }
     }
@@ -416,17 +387,21 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
 
   override fun readNFCCard(): Promise<PlugpagNFCResult> {
     return Promise.async {
-      withContext(Dispatchers.IO) {
-        try {
-          initializePlugPag()
-          // Note: PlugPag wrapper doesn't have a direct readNFCCard method
-          // This would need to be implemented based on available PlugPag NFC methods
-          // For now, returning a placeholder result
-          Log.w(TAG, "NFC card reading not yet implemented - PlugPag wrapper method needed")
-          PlugpagNFCResult(uid = "")
-        } catch (e: Exception) {
-          Log.e(TAG, "Error reading NFC card", e)
-          throw Exception("NFC_READ_ERROR: ${e.message ?: "Unknown error"}")
+      taskManager.executeSecureTask(TaskManager.TaskType.CONFIGURATION) {
+        withContext(Dispatchers.IO) {
+          try {
+            initializePlugPag()
+            
+            val cardData = PlugPagNearFieldCardData()
+            val result = plugPag.readFromNFCCard(cardData)
+            
+            PlugpagNFCResult(
+              uid = cardData.cardSerialNumber ?: "UNKNOWN"
+            )
+          } catch (e: Exception) {
+            Log.e(TAG, "Error reading NFC card", e)
+            throw Exception("NFC_READ_ERROR: ${e.message ?: "Unknown error"}")
+          }
         }
       }
     }
@@ -434,26 +409,26 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
 
   override fun print(filePath: String): Promise<Unit> {
     return Promise.async {
-      withContext(Dispatchers.IO) {
-        try {
-          initializePlugPag()
-          val printerData = PlugPagPrinterData(filePath, 4, 0)
-          
-          plugPag.setPrinterListener(object : PlugPagPrinterListener {
-            override fun onError(result: PlugPagPrintResult) {
-              Log.e(TAG, "Print error: ${result.message}")
-            }
+      taskManager.executeSecureTask(TaskManager.TaskType.PRINT) {
+        withContext(Dispatchers.IO) {
+          try {
+            val printerData = PlugPagPrinterData(filePath, 4, 0)
             
-            override fun onSuccess(result: PlugPagPrintResult) {
-              Log.d(TAG, "Print success")
-            }
-          })
-          
-          plugPag.printFromFile(printerData)
-          Unit
-        } catch (e: Exception) {
-          Log.e(TAG, "Error printing", e)
-          throw Exception("PRINT_ERROR: ${e.message ?: "Unknown error"}")
+            plugPag.setPrinterListener(object : PlugPagPrinterListener {
+              override fun onError(result: PlugPagPrintResult) {
+                Log.e(TAG, "Print error: ${result.message ?: "Print failed"}")
+              }
+              
+              override fun onSuccess(result: PlugPagPrintResult) {
+                Log.i(TAG, "Print completed successfully")
+              }
+            })
+            
+            plugPag.printFromFile(printerData)
+          } catch (e: Exception) {
+            Log.e(TAG, "Error printing", e)
+            throw Exception("PRINT_ERROR: ${e.message ?: "Unknown error"}")
+          }
         }
       }
     }
@@ -461,91 +436,260 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
 
   override fun reprintCustomerReceipt(): Promise<Unit> {
     return Promise.async {
-      withContext(Dispatchers.IO) {
-        try {
-          initializePlugPag()
-          plugPag.reprintCustomerReceipt()
-          Unit
-        } catch (e: Exception) {
-          Log.e(TAG, "Error reprinting receipt", e)
-          throw Exception("REPRINT_ERROR: ${e.message ?: "Unknown error"}")
+      taskManager.executeSecureTask(TaskManager.TaskType.PRINT) {
+        withContext(Dispatchers.IO) {
+          try {
+            plugPag.reprintCustomerReceipt()
+          } catch (e: Exception) {
+            Log.e(TAG, "Error reprinting customer receipt", e)
+            throw Exception("REPRINT_ERROR: ${e.message ?: "Unknown error"}")
+          }
         }
       }
     }
   }
 
+  /**
+   * Initialize PlugPag service and managers
+   */
   private fun initializePlugPag() {
-    if (!this::plugPag.isInitialized) {
-      val context = NitroModules.applicationContext 
-        ?: throw IllegalStateException("Context not available for PlugPag initialization")
-      
+    if (!::plugPag.isInitialized) {
+      val context = NitroModules.applicationContext as Context
       plugPag = PlugPag(context)
+      taskManager = TaskManager(plugPag)
+      uiStateManager = UIStateManager()
+      paymentEventHandler = PaymentEventHandler(uiStateManager)
     }
   }
 
+  /**
+   * Setup payment event listener
+   */
   private fun setupPaymentEventListener() {
-    plugPag.setEventListener(object : PlugPagEventListener {
-      override fun onEvent(plugPagEventData: PlugPagEventData) {
-        messageCard = plugPagEventData.customMessage ?: ""
-        val code = plugPagEventData.eventCode
-        
-        val params = Arguments.createMap().apply {
-          putInt("code", code)
-        }
-        
-        when (code) {
-          PlugPagEventData.EVENT_CODE_DIGIT_PASSWORD -> {
-            countPassword++
-            val passwordDisplay = when (countPassword) {
-              0 -> "Senha:"
-              1 -> "Senha: *"
-              2 -> "Senha: **"
-              3 -> "Senha: ***"
-              4 -> "Senha: ****"
-              5 -> "Senha: *****"
-              6 -> "Senha: ******"
-              else -> "Senha: ******"
-            }
-            params.putString("message", passwordDisplay)
-          }
-          PlugPagEventData.EVENT_CODE_NO_PASSWORD -> {
-            countPassword = 0
-            params.putString("message", "Senha:")
-          }
-          else -> {
-            params.putString("message", messageCard)
-          }
-        }
-        
-        emitEvent(EVENT_PAYMENTS, params)
-      }
-    })
+    plugPag.setEventListener(paymentEventHandler)
   }
 
-  private fun emitEvent(eventName: String, params: WritableMap) {
+  /**
+   * Parse custom messages JSON string into a map
+   * Supports nested objects for UI state-specific messages
+   * 
+   * Expected JSON format:
+   * {
+   *   "insertCard": "Please insert your card",
+   *   "approximateCard": "Approximate your card to the reader",
+   *   "enterPassword": "Enter your password",
+   *   "processing": "Processing transaction...",
+   *   "approved": "Transaction approved",
+   *   "declined": "Transaction declined",
+   *   "cancelled": "Transaction cancelled",
+   *   "error": "Transaction error occurred"
+   * }
+   */
+  private fun parseCustomMessagesJson(jsonString: String): Map<String, String> {
+    val messagesMap = mutableMapOf<String, String>()
+    
     try {
-      val context = NitroModules.applicationContext
-      if (context is ReactApplicationContext) {
-        context.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-          .emit(eventName, params)
-      }
-    } catch (e: Exception) {
-      Log.e(TAG, "Error emitting event $eventName", e)
-    }
-  }
-
-  private fun emitUIStateEvent(state: String, token: String, cancellable: Boolean) {
-    try {
-      val params = Arguments.createMap().apply {
-        putString("state", state)
-        putString("token", token)
-        putBoolean("cancellable", cancellable)
-        putDouble("timestamp", System.currentTimeMillis().toDouble())
+      // Remove whitespace and validate basic JSON structure
+      val trimmedJson = jsonString.trim()
+      if (!trimmedJson.startsWith("{") || !trimmedJson.endsWith("}")) {
+        throw IllegalArgumentException("Invalid JSON format: must be a JSON object")
       }
       
-      emitEvent("eventUIState", params)
+      // Extract content between braces
+      val content = trimmedJson.substring(1, trimmedJson.length - 1).trim()
+      
+      if (content.isEmpty()) {
+        return messagesMap
+      }
+      
+      // Split by commas outside of quoted strings
+      val pairs = parseJsonPairs(content)
+      
+      for (pair in pairs) {
+        val (key, value) = parseJsonKeyValue(pair)
+        
+        // Validate message keys for payment security
+        if (isValidMessageKey(key)) {
+          messagesMap[key] = value
+        } else {
+          Log.w(TAG, "Ignoring invalid message key: $key")
+        }
+      }
+      
+      Log.d(TAG, "Parsed ${messagesMap.size} custom messages")
+      
     } catch (e: Exception) {
-      Log.e(TAG, "Error emitting UI state event", e)
+      Log.e(TAG, "JSON parsing error: ${e.message}", e)
+      throw IllegalArgumentException("Failed to parse custom messages JSON: ${e.message}", e)
     }
+    
+    return messagesMap
+  }
+  
+  /**
+   * Parse JSON pairs, handling quoted strings with commas
+   */
+  private fun parseJsonPairs(content: String): List<String> {
+    val pairs = mutableListOf<String>()
+    var currentPair = StringBuilder()
+    var inQuotes = false
+    var escapeNext = false
+    
+    for (char in content) {
+      when {
+        escapeNext -> {
+          currentPair.append(char)
+          escapeNext = false
+        }
+        char == '\\' -> {
+          currentPair.append(char)
+          escapeNext = true
+        }
+        char == '"' -> {
+          currentPair.append(char)
+          inQuotes = !inQuotes
+        }
+        char == ',' && !inQuotes -> {
+          if (currentPair.isNotEmpty()) {
+            pairs.add(currentPair.toString().trim())
+            currentPair.clear()
+          }
+        }
+        else -> {
+          currentPair.append(char)
+        }
+      }
+    }
+    
+    if (currentPair.isNotEmpty()) {
+      pairs.add(currentPair.toString().trim())
+    }
+    
+    return pairs
+  }
+  
+  /**
+   * Parse a single key-value pair from JSON
+   */
+  private fun parseJsonKeyValue(pair: String): Pair<String, String> {
+    val colonIndex = findColonOutsideQuotes(pair)
+    if (colonIndex == -1) {
+      throw IllegalArgumentException("Invalid key-value pair: $pair")
+    }
+    
+    val keyPart = pair.substring(0, colonIndex).trim()
+    val valuePart = pair.substring(colonIndex + 1).trim()
+    
+    val key = parseJsonString(keyPart)
+    val value = parseJsonString(valuePart)
+    
+    return Pair(key, value)
+  }
+  
+  /**
+   * Find colon that's not inside quoted strings
+   */
+  private fun findColonOutsideQuotes(text: String): Int {
+    var inQuotes = false
+    var escapeNext = false
+    
+    for (i in text.indices) {
+      val char = text[i]
+      when {
+        escapeNext -> escapeNext = false
+        char == '\\' -> escapeNext = true
+        char == '"' -> inQuotes = !inQuotes
+        char == ':' && !inQuotes -> return i
+      }
+    }
+    
+    return -1
+  }
+  
+  /**
+   * Parse a JSON string value, removing quotes and handling escapes
+   */
+  private fun parseJsonString(text: String): String {
+    val trimmed = text.trim()
+    
+    if (!trimmed.startsWith("\"") || !trimmed.endsWith("\"")) {
+      throw IllegalArgumentException("String values must be quoted: $text")
+    }
+    
+    val content = trimmed.substring(1, trimmed.length - 1)
+    return unescapeJsonString(content)
+  }
+  
+  /**
+   * Unescape JSON string content
+   */
+  private fun unescapeJsonString(text: String): String {
+    val result = StringBuilder()
+    var i = 0
+    
+    while (i < text.length) {
+      val char = text[i]
+      if (char == '\\' && i + 1 < text.length) {
+        when (text[i + 1]) {
+          '"' -> result.append('"')
+          '\\' -> result.append('\\')
+          '/' -> result.append('/')
+          'b' -> result.append('\b')
+          'f' -> result.append('\u000C')
+          'n' -> result.append('\n')
+          'r' -> result.append('\r')
+          't' -> result.append('\t')
+          'u' -> {
+            if (i + 5 < text.length) {
+              val hexCode = text.substring(i + 2, i + 6)
+              try {
+                val unicode = hexCode.toInt(16)
+                result.append(unicode.toChar())
+                i += 4 // Skip the 4 hex digits
+              } catch (e: NumberFormatException) {
+                throw IllegalArgumentException("Invalid unicode escape: \\u$hexCode")
+              }
+            } else {
+              throw IllegalArgumentException("Incomplete unicode escape")
+            }
+          }
+          else -> throw IllegalArgumentException("Invalid escape sequence: \\${text[i + 1]}")
+        }
+        i += 2
+      } else {
+        result.append(char)
+        i++
+      }
+    }
+    
+    return result.toString()
+  }
+  
+  /**
+   * Validate message keys for security - only allow predefined UI message keys
+   */
+  private fun isValidMessageKey(key: String): Boolean {
+    val validKeys = setOf(
+      "insertCard",
+      "approximateCard", 
+      "enterPassword",
+      "processing",
+      "approved",
+      "declined",
+      "cancelled",
+      "error",
+      "waitingCard",
+      "waitingPassword",
+      "passwordConfirmed",
+      "cardDetected",
+      "transactionStarted",
+      "transactionCompleted",
+      "authenticationOk",
+      "authenticationFailed",
+      "communicationError",
+      "timeout"
+    )
+    
+    return validKeys.contains(key)
   }
 }

@@ -135,16 +135,19 @@ export interface PlugpagConstants {
 export interface PlugpagNitro extends HybridObject<{ android: 'kotlin' }> {
   /**
    * Get constants for payment types, installment types, and error codes
+   * @worklet
    */
   getConstants(): PlugpagConstants;
 
   /**
    * Get the terminal's serial number (Build.SERIAL)
+   * @worklet
    */
   getTerminalSerialNumber(): string;
 
   /**
    * Initialize and activate the pin pad terminal
+   * @worklet
    * @param activationCode The activation code for the terminal
    */
   initializeAndActivatePinPad(
@@ -153,6 +156,7 @@ export interface PlugpagNitro extends HybridObject<{ android: 'kotlin' }> {
 
   /**
    * Process a payment transaction - optimized with flattened parameters
+   * @worklet
    * @param amount Payment amount in cents
    * @param type Payment type (1=Credit, 2=Debit, 3=Voucher, 5=PIX)
    * @param installmentType Installment type (1=No installment, 2=Seller, 3=Buyer)
