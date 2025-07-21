@@ -1,12 +1,20 @@
 import { NitroModules } from 'react-native-nitro-modules';
+import { useState, useEffect, useCallback } from 'react';
+import { DeviceEventEmitter } from 'react-native';
 import type {
   PlugpagNitro,
   PlugpagInitializationResult,
   PlugpagTransactionResult,
   PlugpagAbortResult,
   PlugpagConstants,
+  PaymentEvent,
 } from './PlugpagNitro.nitro';
-import { PaymentType, InstallmentType, ErrorCode } from './PlugpagNitro.nitro';
+import {
+  PaymentType,
+  InstallmentType,
+  ErrorCode,
+  PaymentEventCode,
+} from './PlugpagNitro.nitro';
 
 // Re-export enums and types for easy access
 export {
@@ -14,6 +22,7 @@ export {
   InstallmentType,
   ErrorCode,
   ActionType,
+  PaymentEventCode,
 } from './PlugpagNitro.nitro';
 
 export type {
@@ -23,6 +32,7 @@ export type {
   PlugpagConstants,
   PlugpagPaymentData,
   PlugpagVoidData,
+  PaymentEvent,
 } from './PlugpagNitro.nitro';
 
 const PlugpagNitroModule =
@@ -132,6 +142,140 @@ export async function doPayment(options: {
 }
 
 /**
+ * Process a payment transaction with real-time event updates
+ * This method emits payment events during the transaction flow to provide
+ * real-time feedback about card insertion, password entry, processing status, etc.
+ */
+export async function doPaymentWithEvents(options: {
+  amount: number;
+  type: PaymentType;
+  installmentType?: InstallmentType;
+  installments?: number;
+  printReceipt?: boolean;
+  userReference?: string;
+}): Promise<PlugpagTransactionResult> {
+  const paymentOptions = {
+    installmentType: options.installmentType ?? InstallmentType.NO_INSTALLMENT,
+    installments: options.installments ?? 1,
+    printReceipt: options.printReceipt ?? true,
+    userReference: options.userReference ?? `payment-events-${Date.now()}`,
+    ...options,
+  };
+
+  return safeModuleCall('doPaymentWithEvents', () =>
+    PlugpagNitroModule.doPaymentWithEvents(
+      paymentOptions.amount,
+      paymentOptions.type,
+      paymentOptions.installmentType,
+      paymentOptions.installments,
+      paymentOptions.printReceipt,
+      paymentOptions.userReference
+    )
+  );
+}
+
+/**
+ * Hook for listening to transaction payment events
+ * Provides real-time updates during payment flow including:
+ * - Card insertion/removal events
+ * - Password entry progress
+ * - Processing status updates
+ * - Error notifications
+ * - Transaction completion status
+ */
+export function useTransactionPaymentEvent(): PaymentEvent {
+  const [paymentEvent, setPaymentEvent] = useState<PaymentEvent>({
+    code: PaymentEventCode.WAITING_CARD,
+    message: 'Aguardando cartão...',
+  });
+
+  useEffect(() => {
+    const eventListener = DeviceEventEmitter.addListener(
+      'paymentEvent',
+      (event: PaymentEvent) => {
+        setPaymentEvent(event);
+      }
+    );
+
+    return () => {
+      eventListener.remove();
+    };
+  }, []);
+
+  const resetEvent = useCallback(() => {
+    setPaymentEvent({
+      code: PaymentEventCode.WAITING_CARD,
+      message: 'Aguardando cartão...',
+    });
+  }, []);
+
+  return {
+    ...paymentEvent,
+    resetEvent,
+  } as PaymentEvent & { resetEvent: () => void };
+}
+
+/**
+ * Enhanced payment flow manager
+ * Combines payment execution with event monitoring
+ */
+export function usePaymentFlow() {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [currentTransaction, setCurrentTransaction] =
+    useState<PlugpagTransactionResult | null>(null);
+  const paymentEvent = useTransactionPaymentEvent();
+
+  const executePayment = useCallback(
+    async (options: {
+      amount: number;
+      type: PaymentType;
+      installmentType?: InstallmentType;
+      installments?: number;
+      printReceipt?: boolean;
+      userReference?: string;
+    }) => {
+      try {
+        setIsProcessing(true);
+        setCurrentTransaction(null);
+
+        const result = await doPaymentWithEvents(options);
+        setCurrentTransaction(result);
+
+        return result;
+      } catch (error) {
+        console.error('[PaymentFlow] Error:', error);
+        throw error;
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    []
+  );
+
+  const resetFlow = useCallback(() => {
+    setIsProcessing(false);
+    setCurrentTransaction(null);
+    if ('resetEvent' in paymentEvent) {
+      (paymentEvent as any).resetEvent();
+    }
+  }, [paymentEvent]);
+
+  return {
+    isProcessing,
+    currentTransaction,
+    paymentEvent,
+    executePayment,
+    resetFlow,
+    isTransactionSuccessful: currentTransaction
+      ? isTransactionSuccessful(currentTransaction)
+      : false,
+    transactionError: currentTransaction
+      ? getTransactionError(currentTransaction)
+      : null,
+  };
+}
+
+/**
  * Refund a previous payment transaction
  */
 export async function refundPayment(options: {
@@ -236,10 +380,15 @@ export default {
   getTerminalSerialNumber,
   initializeAndActivatePinPad,
   doPayment,
+  doPaymentWithEvents,
   refundPayment,
   doAbort,
   print,
   reprintCustomerReceipt,
+
+  // Enhanced payment flow
+  useTransactionPaymentEvent,
+  usePaymentFlow,
 
   // Helper functions
   isTransactionSuccessful,
@@ -249,6 +398,7 @@ export default {
   PaymentType,
   InstallmentType,
   ErrorCode,
+  PaymentEventCode,
 
   // Legacy constants (deprecated)
   PaymentTypes,

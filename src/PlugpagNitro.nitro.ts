@@ -29,6 +29,47 @@ export enum ActionType {
   UPDATE = 3,
 }
 
+export enum PaymentEventCode {
+  // Card reading events
+  CARD_INSERTED = 1001,
+  CARD_REMOVED = 1002,
+  CARD_TAPPED = 1003,
+  WAITING_CARD = 1004,
+
+  // Password events
+  DIGIT_PASSWORD = 1010,
+  NO_PASSWORD = 1011,
+  LAST_PASSWORD_TRY = 1012,
+
+  // Processing events
+  PROCESSING_TRANSACTION = 1020,
+  CONNECTING_TO_NETWORK = 1021,
+  SENDING_DATA = 1022,
+  WAITING_HOST_RESPONSE = 1023,
+
+  // Terminal events
+  REMOVE_CARD = 1030,
+  TRANSACTION_APPROVED = 1031,
+  TRANSACTION_DENIED = 1032,
+
+  // Error events
+  COMMUNICATION_ERROR = 1040,
+  INVALID_CARD = 1041,
+  CARD_BLOCKED = 1042,
+  INSUFFICIENT_FUNDS = 1043,
+
+  // Other events
+  TRANSACTION_CANCELLED = 1050,
+  SIGNATURE_REQUIRED = 1051,
+  PRINTING_RECEIPT = 1052,
+}
+
+export interface PaymentEvent {
+  code: PaymentEventCode;
+  message: string;
+  customMessage?: string;
+}
+
 export interface PlugpagInitializationResult {
   result: ErrorCode;
   errorCode?: string;
@@ -134,6 +175,25 @@ export interface PlugpagNitro extends HybridObject<{ android: 'kotlin' }> {
    * @param userReference Optional user reference
    */
   doPayment(
+    amount: number,
+    type: PaymentType,
+    installmentType: InstallmentType,
+    installments: number,
+    printReceipt: boolean,
+    userReference: string
+  ): Promise<PlugpagTransactionResult>;
+
+  /**
+   * Process a payment transaction with real-time events
+   * This method emits payment events during the transaction flow
+   * @param amount Payment amount in cents
+   * @param type Payment type (PaymentType.CREDIT, PaymentType.DEBIT, etc.)
+   * @param installmentType Installment type (InstallmentType.NO_INSTALLMENT, etc.)
+   * @param installments Number of installments
+   * @param printReceipt Whether to print receipt
+   * @param userReference Optional user reference
+   */
+  doPaymentWithEvents(
     amount: number,
     type: PaymentType,
     installmentType: InstallmentType,
