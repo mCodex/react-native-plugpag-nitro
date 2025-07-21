@@ -151,18 +151,7 @@ allprojects {
 }
 ```
 
-#### 2. Ensure Kotlin support in `android/build.gradle`:
-
-```groovy
-buildscript {
-    ext.kotlin_version = '1.9.0'
-    dependencies {
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-    }
-}
-```
-
-#### 3. That's it! 🎉
+#### 2. That's it! 🎉
 
 The PlugPag wrapper (`br.com.uol.pagseguro.plugpagservice.wrapper:wrapper:1.30.51`) is automatically included as a dependency.
 
