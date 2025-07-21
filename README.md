@@ -29,6 +29,18 @@
 
 ---
 
+## 🚀 Performance
+
+This library leverages [Nitro Modules](https://nitro.margelo.com/) for optimal performance:
+
+- **🔥 Zero-copy ArrayBuffers** for large data transfers
+- **⚡ Flattened function parameters** to avoid object allocation
+- **🔄 Asynchronous Promise-based API** prevents UI blocking
+- **🧵 Thread-safe Kotlin implementation** with proper coroutines
+- **💾 Memory-efficient** with automatic resource management
+
+---
+
 ## ✨ Features
 
 <table>
@@ -401,18 +413,6 @@ try {
   console.error('Unexpected error:', error);
 }
 ```
-
----
-
-## 🚀 Performance
-
-This library leverages [Nitro Modules](https://nitro.margelo.com/) for optimal performance:
-
-- **🔥 Zero-copy ArrayBuffers** for large data transfers
-- **⚡ Flattened function parameters** to avoid object allocation
-- **🔄 Asynchronous Promise-based API** prevents UI blocking
-- **🧵 Thread-safe Kotlin implementation** with proper coroutines
-- **💾 Memory-efficient** with automatic resource management
 
 ---
 
