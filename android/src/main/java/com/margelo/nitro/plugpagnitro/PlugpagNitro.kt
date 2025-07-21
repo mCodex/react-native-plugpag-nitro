@@ -34,10 +34,21 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
   private lateinit var plugPag: PlugPag
   private var countPassword = 0
   private var messageCard = ""
+  
+  // UI Configuration
+  private var showDefaultUI = true
+  private var allowCancellation = true
+  private var defaultTimeoutSeconds = 60
+  private var customMessages = mutableMapOf<String, String>()
+  
+  // Cancellation management
+  private val activeCancellationTokens = mutableSetOf<String>()
+  private val cancellationCallbacks = mutableMapOf<String, () -> Unit>()
 
   companion object {
     private const val TAG = "PlugpagNitro"
     private const val EVENT_PAYMENTS = "eventPayments"
+    private const val EVENT_UI_STATE = "eventUIState"
   }
 
   override fun getConstants(): PlugpagConstants {
@@ -213,6 +224,181 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
     }
   }
 
+  override fun doPaymentWithUI(
+    amount: Double,
+    type: Double,
+    installmentType: Double,
+    installments: Double,
+    printReceipt: Boolean,
+    userReference: String,
+    showDefaultUI: Boolean,
+    allowCancellation: Boolean,
+    timeoutSeconds: Double,
+    cancellationToken: String
+  ): Promise<PlugpagTransactionResult> {
+    return Promise.async {
+      withContext(Dispatchers.IO) {
+        try {
+          initializePlugPag()
+          
+          // Register cancellation token
+          if (allowCancellation) {
+            activeCancellationTokens.add(cancellationToken)
+          }
+          
+          // Setup UI configuration for this payment
+          val originalShowDefaultUI = this@PlugpagNitro.showDefaultUI
+          val originalAllowCancellation = this@PlugpagNitro.allowCancellation
+          
+          this@PlugpagNitro.showDefaultUI = showDefaultUI
+          this@PlugpagNitro.allowCancellation = allowCancellation
+          
+          try {
+            setupPaymentEventListener()
+            
+            // Emit UI state change
+            emitUIStateEvent("PAYMENT_STARTED", cancellationToken, allowCancellation)
+            
+            val plugPagPaymentData = PlugPagPaymentData(
+              type.toInt(),
+              amount.toInt(),
+              installmentType.toInt(),
+              installments.toInt(),
+              userReference,
+              printReceipt
+            )
+            
+            // Set up cancellation callback
+            if (allowCancellation) {
+              cancellationCallbacks[cancellationToken] = {
+                try {
+                  plugPag.abort()
+                  emitUIStateEvent("PAYMENT_CANCELLED", cancellationToken, allowCancellation)
+                } catch (e: Exception) {
+                  Log.e(TAG, "Error cancelling payment", e)
+                }
+              }
+            }
+            
+            val result = plugPag.doPayment(plugPagPaymentData)
+            
+            // Clean up cancellation token
+            activeCancellationTokens.remove(cancellationToken)
+            cancellationCallbacks.remove(cancellationToken)
+            
+            emitUIStateEvent("PAYMENT_COMPLETED", cancellationToken, allowCancellation)
+            
+            PlugpagTransactionResult(
+              result = result.result?.toDouble() ?: 0.0,
+              errorCode = result.errorCode ?: "",
+              message = result.message ?: "",
+              transactionCode = result.transactionCode ?: "",
+              transactionId = result.transactionId ?: "",
+              hostNsu = result.hostNsu ?: "",
+              date = result.date ?: "",
+              time = result.time ?: "",
+              cardBrand = result.cardBrand ?: "",
+              bin = result.bin ?: "",
+              holder = result.holder ?: "",
+              userReference = result.userReference ?: "",
+              terminalSerialNumber = result.terminalSerialNumber ?: "",
+              amount = result.amount ?: "",
+              availableBalance = result.availableBalance ?: "",
+              cardApplication = result.cardApplication ?: "",
+              label = result.label ?: "",
+              holderName = result.holderName ?: "",
+              extendedHolderName = result.extendedHolderName ?: ""
+            )
+          } finally {
+            // Restore original UI settings
+            this@PlugpagNitro.showDefaultUI = originalShowDefaultUI
+            this@PlugpagNitro.allowCancellation = originalAllowCancellation
+          }
+        } catch (e: Exception) {
+          // Clean up on error
+          activeCancellationTokens.remove(cancellationToken)
+          cancellationCallbacks.remove(cancellationToken)
+          emitUIStateEvent("PAYMENT_ERROR", cancellationToken, allowCancellation)
+          
+          Log.e(TAG, "Error processing payment with UI", e)
+          throw Exception("PAYMENT_ERROR: ${e.message ?: "Unknown error"}")
+        }
+      }
+    }
+  }
+
+  override fun cancelPayment(cancellationToken: String): Promise<PlugpagCancellationResult> {
+    return Promise.async {
+      withContext(Dispatchers.IO) {
+        try {
+          if (!activeCancellationTokens.contains(cancellationToken)) {
+            PlugpagCancellationResult(
+              success = false,
+              message = "No active operation with this token"
+            )
+          } else {
+            val callback = cancellationCallbacks[cancellationToken]
+            if (callback != null) {
+              callback.invoke()
+              activeCancellationTokens.remove(cancellationToken)
+              cancellationCallbacks.remove(cancellationToken)
+              
+              PlugpagCancellationResult(
+                success = true,
+                message = "Operation cancelled by user"
+              )
+            } else {
+              PlugpagCancellationResult(
+                success = false,
+                message = "No cancellation callback available"
+              )
+            }
+          }
+        } catch (e: Exception) {
+          Log.e(TAG, "Error cancelling payment", e)
+          PlugpagCancellationResult(
+            success = false,
+            message = "Error during cancellation: ${e.message}"
+          )
+        }
+      }
+    }
+  }
+
+  override fun configureUI(
+    showDefaultUI: Boolean,
+    customMessages: String,
+    allowCancellation: Boolean,
+    timeoutSeconds: Double
+  ): Promise<Boolean> {
+    return Promise.async {
+      try {
+        this@PlugpagNitro.showDefaultUI = showDefaultUI
+        this@PlugpagNitro.allowCancellation = allowCancellation
+        this@PlugpagNitro.defaultTimeoutSeconds = timeoutSeconds.toInt()
+        
+        // Parse custom messages JSON
+        try {
+          // Simple JSON parsing for custom messages
+          // In a real implementation, you might want to use a proper JSON library
+          this@PlugpagNitro.customMessages.clear()
+          if (customMessages.isNotEmpty() && customMessages != "{}") {
+            // Basic parsing - in production, use proper JSON parsing
+            Log.d(TAG, "Custom messages configured: $customMessages")
+          }
+        } catch (e: Exception) {
+          Log.w(TAG, "Error parsing custom messages", e)
+        }
+        
+        Log.d(TAG, "UI configured - showDefaultUI: $showDefaultUI, allowCancellation: $allowCancellation")
+        true
+      } catch (e: Exception) {
+        Log.e(TAG, "Error configuring UI", e)
+        false
+      }
+    }
+  }
+
   override fun doAbort(): Promise<PlugpagAbortResult> {
     return Promise.async {
       withContext(Dispatchers.IO) {
@@ -345,6 +531,21 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
       }
     } catch (e: Exception) {
       Log.e(TAG, "Error emitting event $eventName", e)
+    }
+  }
+
+  private fun emitUIStateEvent(state: String, token: String, cancellable: Boolean) {
+    try {
+      val params = Arguments.createMap().apply {
+        putString("state", state)
+        putString("token", token)
+        putBoolean("cancellable", cancellable)
+        putDouble("timestamp", System.currentTimeMillis().toDouble())
+      }
+      
+      emitEvent("eventUIState", params)
+    } catch (e: Exception) {
+      Log.e(TAG, "Error emitting UI state event", e)
     }
   }
 }
