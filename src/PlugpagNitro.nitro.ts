@@ -1,22 +1,51 @@
 import type { HybridObject } from 'react-native-nitro-modules';
 
+// Enum definitions for type safety
+export enum PaymentType {
+  CREDIT = 1,
+  DEBIT = 2,
+  VOUCHER = 3,
+  PIX = 5,
+}
+
+export enum InstallmentType {
+  NO_INSTALLMENT = 1,
+  SELLER_INSTALLMENT = 2,
+  BUYER_INSTALLMENT = 3,
+}
+
+export enum ErrorCode {
+  OK = 0,
+  OPERATION_ABORTED = -1,
+  AUTHENTICATION_FAILED = -2,
+  COMMUNICATION_ERROR = -3,
+  NO_PRINTER_DEVICE = -4,
+  NO_TRANSACTION_DATA = -5,
+}
+
+export enum ActionType {
+  POST_OPERATION = 1,
+  PRE_OPERATION = 2,
+  UPDATE = 3,
+}
+
 export interface PlugpagInitializationResult {
-  result: number;
+  result: ErrorCode;
   errorCode?: string;
   errorMessage?: string;
 }
 
 export interface PlugpagPaymentData {
   amount: number;
-  type: number;
-  installmentType: number;
+  type: PaymentType;
+  installmentType: InstallmentType;
   installments: number;
   printReceipt: boolean;
   userReference?: string;
 }
 
 export interface PlugpagTransactionResult {
-  result: number;
+  result: ErrorCode;
   errorCode?: string;
   message?: string;
   transactionCode?: string;
@@ -98,28 +127,28 @@ export interface PlugpagNitro extends HybridObject<{ android: 'kotlin' }> {
   /**
    * Process a payment transaction
    * @param amount Payment amount in cents
-   * @param type Payment type (1=Credit, 2=Debit, 3=Voucher, 5=PIX)
-   * @param installmentType Installment type (1=No installment, 2=Seller, 3=Buyer)
+   * @param type Payment type (PaymentType.CREDIT, PaymentType.DEBIT, etc.)
+   * @param installmentType Installment type (InstallmentType.NO_INSTALLMENT, etc.)
    * @param installments Number of installments
    * @param printReceipt Whether to print receipt
    * @param userReference Optional user reference
    */
   doPayment(
     amount: number,
-    type: number,
-    installmentType: number,
+    type: PaymentType,
+    installmentType: InstallmentType,
     installments: number,
     printReceipt: boolean,
     userReference: string
   ): Promise<PlugpagTransactionResult>;
 
   /**
-   * Void/refund a previous payment transaction - optimized with flattened parameters
-   * @param transactionCode Transaction code to void
-   * @param transactionId Transaction ID to void
+   * Refund a previous payment transaction
+   * @param transactionCode Transaction code to refund
+   * @param transactionId Transaction ID to refund
    * @param printReceipt Whether to print receipt
    */
-  voidPayment(
+  refundPayment(
     transactionCode: string,
     transactionId: string,
     printReceipt: boolean

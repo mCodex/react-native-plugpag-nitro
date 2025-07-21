@@ -2,7 +2,12 @@
  * Utility functions for PlugPag Nitro
  */
 
-import { PaymentTypes, InstallmentTypes, type PaymentOptions } from './index';
+import {
+  PaymentType,
+  InstallmentType,
+  ErrorCode,
+  type PaymentOptions,
+} from './index';
 
 /**
  * Format amount from cents to currency string
@@ -41,18 +46,18 @@ export function parseCurrency(currencyString: string): number {
  */
 export function createPaymentOptions(
   amount: number,
-  type: number,
+  type: PaymentType,
   options: {
     installments?: number;
-    installmentType?: number;
+    installmentType?: InstallmentType;
     printReceipt?: boolean;
     userReference?: string;
   } = {}
 ): PaymentOptions {
   const defaultInstallmentType =
-    type === PaymentTypes.DEBIT
-      ? InstallmentTypes.NO_INSTALLMENT
-      : InstallmentTypes.BUYER_INSTALLMENT;
+    type === PaymentType.DEBIT
+      ? InstallmentType.NO_INSTALLMENT
+      : InstallmentType.BUYER_INSTALLMENT;
 
   return {
     amount,
@@ -76,12 +81,12 @@ export const PaymentPresets = {
     installments: number = 1,
     userReference?: string
   ): PaymentOptions =>
-    createPaymentOptions(amountInCents, PaymentTypes.CREDIT, {
+    createPaymentOptions(amountInCents, PaymentType.CREDIT, {
       installments,
       installmentType:
         installments > 1
-          ? InstallmentTypes.BUYER_INSTALLMENT
-          : InstallmentTypes.NO_INSTALLMENT,
+          ? InstallmentType.BUYER_INSTALLMENT
+          : InstallmentType.NO_INSTALLMENT,
       userReference,
     }),
 
@@ -89,8 +94,8 @@ export const PaymentPresets = {
    * Create debit card payment options
    */
   debit: (amountInCents: number, userReference?: string): PaymentOptions =>
-    createPaymentOptions(amountInCents, PaymentTypes.DEBIT, {
-      installmentType: InstallmentTypes.NO_INSTALLMENT,
+    createPaymentOptions(amountInCents, PaymentType.DEBIT, {
+      installmentType: InstallmentType.NO_INSTALLMENT,
       userReference,
     }),
 
@@ -98,8 +103,8 @@ export const PaymentPresets = {
    * Create PIX payment options
    */
   pix: (amountInCents: number, userReference?: string): PaymentOptions =>
-    createPaymentOptions(amountInCents, PaymentTypes.PIX, {
-      installmentType: InstallmentTypes.NO_INSTALLMENT,
+    createPaymentOptions(amountInCents, PaymentType.PIX, {
+      installmentType: InstallmentType.NO_INSTALLMENT,
       userReference,
     }),
 
@@ -107,8 +112,8 @@ export const PaymentPresets = {
    * Create voucher payment options
    */
   voucher: (amountInCents: number, userReference?: string): PaymentOptions =>
-    createPaymentOptions(amountInCents, PaymentTypes.VOUCHER, {
-      installmentType: InstallmentTypes.NO_INSTALLMENT,
+    createPaymentOptions(amountInCents, PaymentType.VOUCHER, {
+      installmentType: InstallmentType.NO_INSTALLMENT,
       userReference,
     }),
 };
@@ -118,8 +123,8 @@ export const PaymentPresets = {
  * @param result Transaction result
  * @returns true if payment was successful
  */
-export function isPaymentSuccessful(result: { result?: number }): boolean {
-  return result.result === 0;
+export function isPaymentSuccessful(result: { result?: ErrorCode }): boolean {
+  return result.result === ErrorCode.OK;
 }
 
 /**

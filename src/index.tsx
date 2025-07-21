@@ -6,41 +6,53 @@ import type {
   PlugpagAbortResult,
   PlugpagConstants,
 } from './PlugpagNitro.nitro';
+import { PaymentType, InstallmentType, ErrorCode } from './PlugpagNitro.nitro';
 
-const PlugpagNitroModule =
-  NitroModules.createHybridObject<PlugpagNitro>('PlugpagNitro');
+// Re-export enums and types for easy access
+export {
+  PaymentType,
+  InstallmentType,
+  ErrorCode,
+  ActionType,
+} from './PlugpagNitro.nitro';
 
-// Export types
 export type {
   PlugpagInitializationResult,
   PlugpagTransactionResult,
   PlugpagAbortResult,
   PlugpagConstants,
-};
+  PlugpagPaymentData,
+  PlugpagVoidData,
+} from './PlugpagNitro.nitro';
 
-// Payment options interface
+const PlugpagNitroModule =
+  NitroModules.createHybridObject<PlugpagNitro>('PlugpagNitro');
+
+// Payment options interface using enum types
 export interface PaymentOptions {
   amount: number;
-  type: number;
-  installmentType?: number;
+  type: PaymentType;
+  installmentType?: InstallmentType;
   installments?: number;
   printReceipt?: boolean;
   userReference?: string;
 }
 
-// Payment type constants from PagBank SDK
+// Payment type constants (deprecated - use PaymentType enum instead)
+/** @deprecated Use PaymentType enum instead */
 export const PaymentTypes = {
-  CREDIT: 1,
-  DEBIT: 2,
-  VOUCHER: 3,
-  PIX: 5,
+  CREDIT: PaymentType.CREDIT,
+  DEBIT: PaymentType.DEBIT,
+  VOUCHER: PaymentType.VOUCHER,
+  PIX: PaymentType.PIX,
 } as const;
 
-// Installment type constants
+// Installment type constants (deprecated - use InstallmentType enum instead)
+/** @deprecated Use InstallmentType enum instead */
 export const InstallmentTypes = {
-  NO_INSTALLMENT: 1,
-  SELLER_INSTALLMENT: 2,
-  BUYER_INSTALLMENT: 3,
+  NO_INSTALLMENT: InstallmentType.NO_INSTALLMENT,
+  SELLER_INSTALLMENT: InstallmentType.SELLER_INSTALLMENT,
+  BUYER_INSTALLMENT: InstallmentType.BUYER_INSTALLMENT,
 } as const;
 
 // Simple error handling wrapper
@@ -93,14 +105,14 @@ export async function initializeAndActivatePinPad(
  */
 export async function doPayment(options: {
   amount: number;
-  type: number;
-  installmentType?: number;
+  type: PaymentType;
+  installmentType?: InstallmentType;
   installments?: number;
   printReceipt?: boolean;
   userReference?: string;
 }): Promise<PlugpagTransactionResult> {
   const paymentOptions = {
-    installmentType: options.installmentType ?? InstallmentTypes.NO_INSTALLMENT,
+    installmentType: options.installmentType ?? InstallmentType.NO_INSTALLMENT,
     installments: options.installments ?? 1,
     printReceipt: options.printReceipt ?? true,
     userReference: options.userReference ?? `payment-${Date.now()}`,
@@ -120,15 +132,15 @@ export async function doPayment(options: {
 }
 
 /**
- * Void/refund a previous payment transaction
+ * Refund a previous payment transaction
  */
-export async function voidPayment(options: {
+export async function refundPayment(options: {
   transactionCode: string;
   transactionId: string;
   printReceipt?: boolean;
 }): Promise<PlugpagTransactionResult> {
-  return safeModuleCall('voidPayment', () =>
-    PlugpagNitroModule.voidPayment(
+  return safeModuleCall('refundPayment', () =>
+    PlugpagNitroModule.refundPayment(
       options.transactionCode,
       options.transactionId,
       options.printReceipt ?? true
@@ -166,7 +178,7 @@ export async function reprintCustomerReceipt(): Promise<void> {
 export function isTransactionSuccessful(
   result: PlugpagTransactionResult
 ): boolean {
-  return result.result === 0; // PlugPag.RET_OK = 0
+  return result.result === ErrorCode.OK;
 }
 
 /**
@@ -187,49 +199,61 @@ export function getTransactionError(
 export const PaymentPresets = {
   creditCard: (amount: number, installments: number = 1) => ({
     amount,
-    type: PaymentTypes.CREDIT,
+    type: PaymentType.CREDIT,
     installmentType:
       installments > 1
-        ? InstallmentTypes.BUYER_INSTALLMENT
-        : InstallmentTypes.NO_INSTALLMENT,
+        ? InstallmentType.BUYER_INSTALLMENT
+        : InstallmentType.NO_INSTALLMENT,
     installments,
   }),
 
   debitCard: (amount: number) => ({
     amount,
-    type: PaymentTypes.DEBIT,
-    installmentType: InstallmentTypes.NO_INSTALLMENT,
+    type: PaymentType.DEBIT,
+    installmentType: InstallmentType.NO_INSTALLMENT,
     installments: 1,
   }),
 
   pix: (amount: number) => ({
     amount,
-    type: PaymentTypes.PIX,
-    installmentType: InstallmentTypes.NO_INSTALLMENT,
+    type: PaymentType.PIX,
+    installmentType: InstallmentType.NO_INSTALLMENT,
     installments: 1,
   }),
 
   voucher: (amount: number) => ({
     amount,
-    type: PaymentTypes.VOUCHER,
-    installmentType: InstallmentTypes.NO_INSTALLMENT,
+    type: PaymentType.VOUCHER,
+    installmentType: InstallmentType.NO_INSTALLMENT,
     installments: 1,
   }),
 } as const;
 
 // Default export
 export default {
+  // Core functions
   getConstants,
   getTerminalSerialNumber,
   initializeAndActivatePinPad,
   doPayment,
-  voidPayment,
+  refundPayment,
   doAbort,
   print,
   reprintCustomerReceipt,
+
+  // Helper functions
   isTransactionSuccessful,
   getTransactionError,
+
+  // Enums (recommended)
+  PaymentType,
+  InstallmentType,
+  ErrorCode,
+
+  // Legacy constants (deprecated)
   PaymentTypes,
   InstallmentTypes,
+
+  // Presets
   PaymentPresets,
 };

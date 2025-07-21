@@ -79,8 +79,18 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
           val activationData = PlugPagActivationData(activationCode)
           val result = plugPag.initializeAndActivatePinpad(activationData)
           
+          val errorCode = when (result.result) {
+            PlugPag.RET_OK -> ErrorCode.OK
+            PlugPag.OPERATION_ABORTED -> ErrorCode.OPERATION_ABORTED
+            PlugPag.AUTHENTICATION_FAILED -> ErrorCode.AUTHENTICATION_FAILED
+            PlugPag.COMMUNICATION_ERROR -> ErrorCode.COMMUNICATION_ERROR
+            PlugPag.NO_PRINTER_DEVICE -> ErrorCode.NO_PRINTER_DEVICE
+            PlugPag.NO_TRANSACTION_DATA -> ErrorCode.NO_TRANSACTION_DATA
+            else -> ErrorCode.COMMUNICATION_ERROR
+          }
+          
           PlugpagInitializationResult(
-            result = result.result.toDouble(),
+            result = errorCode,
             errorCode = result.errorCode ?: "",
             errorMessage = result.errorMessage ?: ""
           )
@@ -94,8 +104,8 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
 
   override fun doPayment(
     amount: Double,
-    type: Double,
-    installmentType: Double,
+    type: PaymentType,
+    installmentType: InstallmentType,
     installments: Double,
     printReceipt: Boolean,
     userReference: String
@@ -105,10 +115,24 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
         try {
           initializePlugPag()
           
+          // Convert enum to PlugPag SDK constants
+          val paymentType = when (type) {
+            PaymentType.CREDIT -> PlugPag.TYPE_CREDITO
+            PaymentType.DEBIT -> PlugPag.TYPE_DEBITO
+            PaymentType.VOUCHER -> PlugPag.TYPE_VOUCHER
+            PaymentType.PIX -> PlugPag.TYPE_PIX
+          }
+          
+          val installmentTypeInt = when (installmentType) {
+            InstallmentType.NO_INSTALLMENT -> PlugPag.INSTALLMENT_TYPE_A_VISTA
+            InstallmentType.SELLER_INSTALLMENT -> PlugPag.INSTALLMENT_TYPE_PARC_VENDEDOR
+            InstallmentType.BUYER_INSTALLMENT -> PlugPag.INSTALLMENT_TYPE_PARC_COMPRADOR
+          }
+          
           val plugPagPaymentData = PlugPagPaymentData(
-            type.toInt(),
+            paymentType,
             amount.toInt(),
-            installmentType.toInt(),
+            installmentTypeInt,
             installments.toInt(),
             userReference,
             printReceipt
@@ -116,8 +140,18 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
           
           val result = plugPag.doPayment(plugPagPaymentData)
           
+          val errorCode = when (result.result) {
+            PlugPag.RET_OK -> ErrorCode.OK
+            PlugPag.OPERATION_ABORTED -> ErrorCode.OPERATION_ABORTED
+            PlugPag.AUTHENTICATION_FAILED -> ErrorCode.AUTHENTICATION_FAILED
+            PlugPag.COMMUNICATION_ERROR -> ErrorCode.COMMUNICATION_ERROR
+            PlugPag.NO_PRINTER_DEVICE -> ErrorCode.NO_PRINTER_DEVICE
+            PlugPag.NO_TRANSACTION_DATA -> ErrorCode.NO_TRANSACTION_DATA
+            else -> ErrorCode.COMMUNICATION_ERROR
+          }
+          
           PlugpagTransactionResult(
-            result = result.result?.toDouble() ?: 0.0,
+            result = errorCode,
             errorCode = result.errorCode ?: "",
             message = result.message ?: "",
             transactionCode = result.transactionCode ?: "",
@@ -145,7 +179,7 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
     }
   }
 
-  override fun voidPayment(
+  override fun refundPayment(
     transactionCode: String,
     transactionId: String,
     printReceipt: Boolean
@@ -163,8 +197,18 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
           
           val result = plugPag.voidPayment(plugPagVoidData)
           
+          val errorCode = when (result.result) {
+            PlugPag.RET_OK -> ErrorCode.OK
+            PlugPag.OPERATION_ABORTED -> ErrorCode.OPERATION_ABORTED
+            PlugPag.AUTHENTICATION_FAILED -> ErrorCode.AUTHENTICATION_FAILED
+            PlugPag.COMMUNICATION_ERROR -> ErrorCode.COMMUNICATION_ERROR
+            PlugPag.NO_PRINTER_DEVICE -> ErrorCode.NO_PRINTER_DEVICE
+            PlugPag.NO_TRANSACTION_DATA -> ErrorCode.NO_TRANSACTION_DATA
+            else -> ErrorCode.COMMUNICATION_ERROR
+          }
+          
           PlugpagTransactionResult(
-            result = result.result?.toDouble() ?: 0.0,
+            result = errorCode,
             errorCode = result.errorCode ?: "",
             message = result.message ?: "",
             transactionCode = result.transactionCode ?: "",
@@ -185,8 +229,8 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
             extendedHolderName = result.extendedHolderName ?: ""
           )
         } catch (e: Exception) {
-          Log.e(TAG, "Error processing void payment", e)
-          throw Exception("VOID_PAYMENT_ERROR: ${e.message ?: "Unknown error"}")
+          Log.e(TAG, "Error processing refund payment", e)
+          throw Exception("REFUND_PAYMENT_ERROR: ${e.message ?: "Unknown error"}")
         }
       }
     }
