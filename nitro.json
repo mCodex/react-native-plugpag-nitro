@@ -1,0 +1,16 @@
+{
+  "cxxNamespace": ["plugpagnitro"],
+  "ios": {
+    "iosModuleName": "PlugpagNitro"
+  },
+  "android": {
+    "androidNamespace": ["plugpagnitro"],
+    "androidCxxLibName": "plugpagnitro"
+  },
+  "autolinking": {
+    "PlugpagNitro": {
+      "kotlin": "PlugpagNitro"
+    }
+  },
+  "ignorePaths": ["node_modules"]
+}
