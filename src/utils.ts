@@ -2,7 +2,7 @@
  * Utility functions for PlugPag Nitro
  */
 
-import { PaymentTypes, InstallmentTypes, type PaymentRequest } from './index';
+import { PaymentTypes, InstallmentTypes, type PaymentOptions } from './index';
 
 /**
  * Format amount from cents to currency string
@@ -34,12 +34,12 @@ export function parseCurrency(currencyString: string): number {
 }
 
 /**
- * Create a standardized payment request
+ * Create a standardized payment options object
  * @param amount Amount in cents
  * @param type Payment type
  * @param options Additional options
  */
-export function createPaymentRequest(
+export function createPaymentOptions(
   amount: number,
   type: PaymentTypes,
   options: {
@@ -48,7 +48,7 @@ export function createPaymentRequest(
     printReceipt?: boolean;
     userReference?: string;
   } = {}
-): PaymentRequest {
+): PaymentOptions {
   const defaultInstallmentType =
     type === PaymentTypes.DEBIT
       ? InstallmentTypes.NO_INSTALLMENT
@@ -57,26 +57,26 @@ export function createPaymentRequest(
   return {
     amount,
     type,
-    installments: options.installments || 1,
-    installmentType: options.installmentType || defaultInstallmentType,
+    installments: options.installments ?? 1,
+    installmentType: options.installmentType ?? defaultInstallmentType,
     printReceipt: options.printReceipt ?? true,
-    userReference: options.userReference || `payment-${Date.now()}`,
+    userReference: options.userReference ?? `payment-${Date.now()}`,
   };
 }
 
 /**
- * Predefined payment requests for common scenarios
+ * Predefined payment options for common scenarios
  */
 export const PaymentPresets = {
   /**
-   * Create a credit card payment
+   * Create credit card payment options
    */
   credit: (
     amountInCents: number,
     installments: number = 1,
     userReference?: string
-  ) =>
-    createPaymentRequest(amountInCents, PaymentTypes.CREDIT, {
+  ): PaymentOptions =>
+    createPaymentOptions(amountInCents, PaymentTypes.CREDIT, {
       installments,
       installmentType:
         installments > 1
@@ -86,28 +86,28 @@ export const PaymentPresets = {
     }),
 
   /**
-   * Create a debit card payment
+   * Create debit card payment options
    */
-  debit: (amountInCents: number, userReference?: string) =>
-    createPaymentRequest(amountInCents, PaymentTypes.DEBIT, {
+  debit: (amountInCents: number, userReference?: string): PaymentOptions =>
+    createPaymentOptions(amountInCents, PaymentTypes.DEBIT, {
       installmentType: InstallmentTypes.NO_INSTALLMENT,
       userReference,
     }),
 
   /**
-   * Create a PIX payment
+   * Create PIX payment options
    */
-  pix: (amountInCents: number, userReference?: string) =>
-    createPaymentRequest(amountInCents, PaymentTypes.PIX, {
+  pix: (amountInCents: number, userReference?: string): PaymentOptions =>
+    createPaymentOptions(amountInCents, PaymentTypes.PIX, {
       installmentType: InstallmentTypes.NO_INSTALLMENT,
       userReference,
     }),
 
   /**
-   * Create a voucher payment
+   * Create voucher payment options
    */
-  voucher: (amountInCents: number, userReference?: string) =>
-    createPaymentRequest(amountInCents, PaymentTypes.VOUCHER, {
+  voucher: (amountInCents: number, userReference?: string): PaymentOptions =>
+    createPaymentOptions(amountInCents, PaymentTypes.VOUCHER, {
       installmentType: InstallmentTypes.NO_INSTALLMENT,
       userReference,
     }),

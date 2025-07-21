@@ -34,11 +34,12 @@
 > **Note**: Built with [Nitro Modules](https://nitro.margelo.com/) for **~10x faster** performance than traditional bridges
 
 - 🔥 **High Performance** - Direct JSI bindings, zero-copy data transfer
+- ⚛️ **Hook-First Design** - Modern React patterns with unified `usePayment` hook
 - 🎨 **Flexible UI** - Complete payment UI customization with real-time state updates
-- 💰 **PIX Optimized** - Dedicated PIX payments with instant feedback
+- 💰 **All Payment Types** - Credit, Debit, PIX, and Voucher support
 - ⏹️ **Cancellation Support** - Real-time operation cancellation
-- ⚛️ **React Hooks** - Modern React patterns with TypeScript support
 - 📱 **Android Focused** - Optimized for PlugPag terminals
+- 🛡️ **TypeScript Native** - Full type safety and IntelliSense support
 
 ---
 
@@ -50,14 +51,35 @@ npm install react-native-plugpag-nitro
 
 > **Requirements**: React Native ≥ 0.72, Android API ≥ 21, Kotlin ≥ 1.9
 
+### Hook-Based Approach (Recommended)
+
 ```typescript
-import { initializeAndActivatePinPad, doPayment, PaymentPresets } from 'react-native-plugpag-nitro';
+import { usePayment, PaymentPresets, initializeAndActivatePinPad } from 'react-native-plugpag-nitro';
 
-// Initialize terminal
-await initializeAndActivatePinPad('your-activation-code');
+function PaymentComponent() {
+  const { doPayment, isProcessing, cancelPayment, canCancel } = usePayment();
 
-// Process payment
-const result = await doPayment(PaymentPresets.credit(2500)); // R$ 25,00
+  // Initialize terminal once
+  await initializeAndActivatePinPad('your-activation-code');
+
+  // Process payment with automatic UI handling
+  const handlePayment = async () => {
+    const result = await doPayment({
+      ...PaymentPresets.credit(2500), // R$ 25,00
+      uiConfiguration: {
+        messages: { insertCard: 'Insira seu cartão' },
+        behavior: { allowCancellation: true }
+      }
+    });
+  };
+
+  return (
+    <View>
+      <Button title="Pay" onPress={handlePayment} disabled={isProcessing} />
+      {canCancel && <Button title="Cancel" onPress={cancelPayment} />}
+    </View>
+  );
+}
 ```
 
 ---
@@ -87,42 +109,26 @@ const serial = getTerminalSerialNumber(); // Returns: string
 </details>
 
 <details>
-<summary><b>💳 Payment Processing</b></summary>
+<summary><b>💳 Payment Processing (Hook Approach)</b></summary>
 
-#### `doPayment(request: PaymentRequest)`
-Standard payment processing.
+The modern, recommended approach using the `usePayment` hook handles all payment types with unified interface.
 
 ```typescript
-interface PaymentRequest {
-  amount: number;           // Amount in cents
-  type: number;            // 1=Credit, 2=Debit, 3=Voucher, 5=PIX
-  installmentType: number; // 1=None, 2=Seller, 3=Buyer
-  installments: number;    // 1-99
-  printReceipt: boolean;
-  userReference?: string;
-}
+// All payment types supported
+PaymentTypes.CREDIT   // Credit card
+PaymentTypes.DEBIT    // Debit card  
+PaymentTypes.PIX      // PIX instant payment
+PaymentTypes.VOUCHER  // Voucher/meal card
 
+// Example with custom UI
 const result = await doPayment({
-  amount: 2500,
-  type: 1, // Credit
-  installmentType: 1,
-  installments: 1,
-  printReceipt: true
-});
-```
-
-#### `doPaymentWithUI(request: EnhancedPaymentRequest)`
-Payment with advanced UI control and cancellation support.
-
-```typescript
-const result = await doPaymentWithUI({
-  ...PaymentPresets.credit(5000),
+  ...PaymentPresets.credit(5000, 3), // R$ 50,00 in 3 installments
   uiConfiguration: {
     messages: {
-      insertCard: 'Insira seu cartão',
-      processing: 'Processando...',
-      approved: 'Aprovado!',
-      declined: 'Recusado'
+      insertCard: 'Insira seu cartão de crédito',
+      processing: 'Processando pagamento...',
+      approved: 'Pagamento aprovado!',
+      declined: 'Pagamento recusado'
     },
     behavior: {
       showDefaultUI: true,
@@ -131,27 +137,26 @@ const result = await doPaymentWithUI({
     },
     styling: {
       primaryColor: '#007AFF',
-      backgroundColor: '#F2F2F7',
-      textColor: '#000000'
+      backgroundColor: '#F2F2F7'
     }
   }
 });
 ```
 
-#### `doPixPaymentWithUI(amount: number, uiConfig?: PlugpagUIConfiguration, userRef?: string)`
-PIX-optimized payment with enhanced UI.
-
+#### PIX Payment Example
 ```typescript
-const result = await doPixPaymentWithUI(
-  2500, // R$ 25,00
-  {
+// PIX with optimized UI
+const result = await doPayment({
+  ...PaymentPresets.pix(2500, 'order-123'),
+  uiConfiguration: {
     messages: {
-      insertCard: '📱 Aproxime para PIX',
+      insertCard: '📱 Aproxime seu celular para PIX',
       processing: '⚡ PIX instantâneo...'
-    }
-  },
-  'pix-order-123'
-);
+    },
+    behavior: { timeoutSeconds: 90 }, // PIX-optimized
+    styling: { primaryColor: '#32D74B' } // PIX green
+  }
+});
 ```
 
 </details>
@@ -159,23 +164,16 @@ const result = await doPixPaymentWithUI(
 <details>
 <summary><b>⏹️ Cancellation & Control</b></summary>
 
-#### `cancelPayment(token: string)`
-Cancels an ongoing payment operation.
+Built into the `usePayment` hook - no separate functions needed.
 
 ```typescript
-const result = await cancelPayment('payment_token_123');
-// Returns: { success: boolean, message?: string }
-```
+const { doPayment, cancelPayment, canCancel, isProcessing } = usePayment();
 
-#### `configureUI(configuration: PlugpagUIConfiguration)`
-Sets global UI configuration.
-
-```typescript
-await configureUI({
-  messages: { /* global messages */ },
-  behavior: { /* global behavior */ },
-  styling: { /* global styling */ }
-});
+// Cancel active payment
+if (canCancel) {
+  const result = await cancelPayment();
+  // Returns: { success: boolean, message?: string }
+}
 ```
 
 </details>
@@ -183,22 +181,53 @@ await configureUI({
 ### React Hooks
 
 <details>
-<summary><b>⚛️ React Integration</b></summary>
+<summary><b>⚛️ usePayment Hook (Primary API)</b></summary>
 
-#### `usePaymentWithCancellation(onStateChange?)`
-Complete payment lifecycle with cancellation support.
+The main hook for all payment operations with built-in UI state management and cancellation support.
 
 ```typescript
 const {
-  startPayment,           // Start payment with UI
-  cancelCurrentPayment,   // Cancel active payment
-  isProcessing,          // Processing state
+  doPayment,             // Process payment with options
+  cancelPayment,         // Cancel active payment
+  isProcessing,          // Current processing state
   canCancel,             // Can cancel current operation
   uiState,               // Current UI state
   lastEvent,             // Last UI event
   clearState             // Reset state
-} = usePaymentWithCancellation();
+} = usePayment((state, event) => {
+  console.log('Payment state changed:', state, event);
+});
+
+// Usage
+const paymentOptions: PaymentOptions = {
+  amount: 2500,
+  type: PaymentTypes.CREDIT,
+  uiConfiguration: {
+    messages: { insertCard: 'Insert your card' },
+    behavior: { allowCancellation: true }
+  }
+};
+
+const result = await doPayment(paymentOptions);
 ```
+
+#### PaymentOptions Interface
+```typescript
+interface PaymentOptions {
+  amount: number;                    // Amount in cents
+  type: PaymentTypes;               // CREDIT, DEBIT, PIX, VOUCHER
+  installmentType?: InstallmentTypes; // Optional, auto-detected
+  installments?: number;            // Default: 1
+  printReceipt?: boolean;           // Default: true
+  userReference?: string;           // Default: auto-generated
+  uiConfiguration?: PlugpagUIConfiguration; // Optional UI config
+}
+```
+
+</details>
+
+<details>
+<summary><b>📊 Additional Hooks</b></summary>
 
 #### `useUIStateEvent(cancellationToken?)`
 Monitor UI state changes in real-time.
@@ -212,6 +241,14 @@ const {
   isCompleted,           // Payment completed
   hasError               // Error occurred
 } = useUIStateEvent();
+```
+
+#### `useTransactionPaymentEvent()`
+Listen to low-level payment events.
+
+```typescript
+const eventPayment = useTransactionPaymentEvent();
+// Returns: { code: number, message: string }
 ```
 
 </details>
@@ -261,51 +298,33 @@ getPaymentErrorMessage(result); // string | null
 ## 💡 Usage Examples
 
 <details>
-<summary><b>💳 Basic Payment Flow</b></summary>
-
-```typescript
-import { doPayment, PaymentPresets, formatCurrency } from 'react-native-plugpag-nitro';
-
-async function processPayment() {
-  try {
-    const result = await doPayment(PaymentPresets.credit(2500));
-    
-    if (isPaymentSuccessful(result)) {
-      console.log(`Payment approved: ${formatCurrency(result.amount)}`);
-    } else {
-      console.log(`Payment failed: ${getPaymentErrorMessage(result)}`);
-    }
-  } catch (error) {
-    console.error('Payment error:', error.message);
-  }
-}
-```
-
-</details>
-
-<details>
-<summary><b>🎨 Custom UI Payment</b></summary>
+<summary><b>💳 Modern Hook-Based Payment</b></summary>
 
 ```typescript
 import React from 'react';
-import { usePaymentWithCancellation, PaymentPresets } from 'react-native-plugpag-nitro';
+import { usePayment, PaymentPresets, formatCurrency } from 'react-native-plugpag-nitro';
 
 function PaymentScreen() {
-  const { startPayment, cancelCurrentPayment, isProcessing, canCancel, uiState } = 
-    usePaymentWithCancellation();
+  const { doPayment, isProcessing, cancelPayment, canCancel, uiState } = usePayment();
 
-  const handlePayment = async () => {
-    await startPayment({
-      ...PaymentPresets.credit(5000),
-      uiConfiguration: {
-        messages: {
-          insertCard: 'Insira seu cartão de crédito',
-          processing: 'Processando pagamento...'
-        },
-        behavior: { allowCancellation: true },
-        styling: { primaryColor: '#007AFF' }
+  const handleCreditPayment = async () => {
+    try {
+      const result = await doPayment({
+        ...PaymentPresets.credit(2500), // R$ 25,00
+        uiConfiguration: {
+          messages: {
+            insertCard: 'Insira seu cartão de crédito',
+            processing: 'Processando pagamento...'
+          }
+        }
+      });
+      
+      if (isPaymentSuccessful(result)) {
+        Alert.alert('Sucesso', `Pagamento aprovado: ${formatCurrency(result.amount)}`);
       }
-    });
+    } catch (error) {
+      Alert.alert('Erro', error.message);
+    }
   };
 
   return (
@@ -313,13 +332,13 @@ function PaymentScreen() {
       {uiState && <Text>Status: {uiState}</Text>}
       
       <Button 
-        title={isProcessing ? 'Processando...' : 'Pagar'} 
-        onPress={handlePayment}
+        title={isProcessing ? 'Processando...' : 'Pagar R$ 25,00'} 
+        onPress={handleCreditPayment}
         disabled={isProcessing}
       />
       
       {canCancel && (
-        <Button title="Cancelar" onPress={cancelCurrentPayment} color="red" />
+        <Button title="Cancelar" onPress={cancelPayment} color="red" />
       )}
     </View>
   );
@@ -332,12 +351,10 @@ function PaymentScreen() {
 <summary><b>📱 PIX Payment with Custom UI</b></summary>
 
 ```typescript
-import { doPixPaymentWithUI } from 'react-native-plugpag-nitro';
-
-async function pixPayment() {
-  const result = await doPixPaymentWithUI(
-    2500, // R$ 25,00
-    {
+const handlePixPayment = async () => {
+  const result = await doPayment({
+    ...PaymentPresets.pix(2500, 'order-123'),
+    uiConfiguration: {
       messages: {
         insertCard: '📱 Aproxime seu celular para PIX',
         processing: '⚡ PIX instantâneo em andamento...',
@@ -351,8 +368,58 @@ async function pixPayment() {
         primaryColor: '#32D74B', // PIX green
         backgroundColor: '#F8F9FA'
       }
+    }
+  });
+};
+```
+
+</details>
+
+<details>
+<summary><b>🎯 Multiple Payment Types</b></summary>
+
+```typescript
+function PaymentOptions() {
+  const { doPayment, isProcessing } = usePayment();
+
+  const payments = [
+    { 
+      title: 'Crédito', 
+      preset: PaymentPresets.credit(5000, 1),
+      color: '#007AFF' 
     },
-    'pix-order-123'
+    { 
+      title: 'Débito', 
+      preset: PaymentPresets.debit(5000),
+      color: '#34C759' 
+    },
+    { 
+      title: 'PIX', 
+      preset: PaymentPresets.pix(5000),
+      color: '#32D74B' 
+    }
+  ];
+
+  const handlePayment = (preset, title) => async () => {
+    const result = await doPayment({
+      ...preset,
+      uiConfiguration: {
+        styling: { primaryColor: preset.color }
+      }
+    });
+  };
+
+  return (
+    <View>
+      {payments.map(payment => (
+        <Button
+          key={payment.title}
+          title={`${payment.title} - R$ 50,00`}
+          onPress={handlePayment(payment.preset, payment.title)}
+          disabled={isProcessing}
+        />
+      ))}
+    </View>
   );
 }
 ```

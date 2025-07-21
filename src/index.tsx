@@ -4,19 +4,15 @@ import { DeviceEventEmitter } from 'react-native';
 import type {
   PlugpagNitro,
   PlugpagInitializationResult,
-  PlugpagPaymentData,
   PlugpagTransactionResult,
-  PlugpagVoidData,
   PlugpagAbortResult,
   PlugpagNFCResult,
   PlugpagConstants,
   PlugpagUIConfiguration,
-  PlugpagPaymentOptions,
   PlugpagCancellationResult,
   UIState,
   UIStateEvent,
 } from './PlugpagNitro.nitro';
-import { PaymentPresets } from './utils';
 
 const PlugpagNitroModule =
   NitroModules.createHybridObject<PlugpagNitro>('PlugpagNitro');
@@ -24,14 +20,11 @@ const PlugpagNitroModule =
 // Export types
 export type {
   PlugpagInitializationResult,
-  PlugpagPaymentData,
   PlugpagTransactionResult,
-  PlugpagVoidData,
   PlugpagAbortResult,
   PlugpagNFCResult,
   PlugpagConstants,
   PlugpagUIConfiguration,
-  PlugpagPaymentOptions,
   PlugpagCancellationResult,
   UIState,
   UIStateEvent,
@@ -70,27 +63,22 @@ export interface TransactionPaymentEvent {
   message: string;
 }
 
-// Enhanced payment request with UI options
-export interface EnhancedPaymentRequest extends PaymentRequest {
-  uiConfiguration?: PlugpagUIConfiguration;
-  cancellationToken?: string;
-}
-
-// Simplified payment data interface for end users
-export interface PaymentRequest {
+// Unified payment options interface
+export interface PaymentOptions {
   amount: number;
   type: PaymentTypes;
-  installmentType: InstallmentTypes;
-  installments: number;
-  printReceipt: boolean;
+  installmentType?: InstallmentTypes;
+  installments?: number;
+  printReceipt?: boolean;
   userReference?: string;
+  uiConfiguration?: PlugpagUIConfiguration;
 }
 
 // Refund request interface
 export interface RefundRequest {
   transactionCode: string;
   transactionId: string;
-  printReceipt: boolean;
+  printReceipt?: boolean;
 }
 
 // Get constants from native module
@@ -172,119 +160,6 @@ export function getTerminalSerialNumber(): string {
 }
 
 /**
- * Process a payment transaction
- * @param paymentRequest The payment request data
- */
-export async function doPayment(
-  paymentRequest: PaymentRequest
-): Promise<PlugpagTransactionResult> {
-  return safeModuleCall('doPayment', () =>
-    PlugpagNitroModule.doPayment(
-      paymentRequest.amount,
-      paymentRequest.type,
-      paymentRequest.installmentType,
-      paymentRequest.installments,
-      paymentRequest.printReceipt,
-      paymentRequest.userReference || ''
-    )
-  );
-}
-
-/**
- * Process a PIX payment with enhanced UI control
- * @param amount Amount in cents
- * @param uiConfiguration Optional UI configuration for PIX-specific experience
- * @param userReference Optional user reference
- */
-export async function doPixPaymentWithUI(
-  amount: number,
-  uiConfiguration?: PlugpagUIConfiguration,
-  userReference?: string
-): Promise<PlugpagTransactionResult> {
-  const pixUIConfig: PlugpagUIConfiguration = {
-    messages: {
-      insertCard: 'Aproxime seu celular ou cartão para PIX',
-      processing: 'Processando pagamento PIX...',
-      approved: 'PIX aprovado com sucesso!',
-      declined: 'PIX não autorizado',
-      ...uiConfiguration?.messages,
-    },
-    behavior: {
-      showDefaultUI: true,
-      allowCancellation: true,
-      timeoutSeconds: 90, // PIX typically has shorter timeout
-      ...uiConfiguration?.behavior,
-    },
-    styling: {
-      primaryColor: '#32D74B', // PIX green
-      backgroundColor: '#F2F2F7',
-      textColor: '#000000',
-      ...uiConfiguration?.styling,
-    },
-  };
-
-  return doPaymentWithUI({
-    ...PaymentPresets.pix(amount, userReference),
-    uiConfiguration: pixUIConfig,
-  });
-}
-
-/**
- * Process a payment transaction with enhanced UI control
- * @param paymentRequest The payment request data with UI configuration
- */
-export async function doPaymentWithUI(
-  paymentRequest: EnhancedPaymentRequest
-): Promise<PlugpagTransactionResult> {
-  const config = paymentRequest.uiConfiguration || {};
-  const token = paymentRequest.cancellationToken || `payment_${Date.now()}`;
-
-  return safeModuleCall('doPaymentWithUI', () =>
-    PlugpagNitroModule.doPaymentWithUI(
-      paymentRequest.amount,
-      paymentRequest.type,
-      paymentRequest.installmentType,
-      paymentRequest.installments,
-      paymentRequest.printReceipt,
-      paymentRequest.userReference || '',
-      config.behavior?.showDefaultUI ?? true,
-      config.behavior?.allowCancellation ?? true,
-      config.behavior?.timeoutSeconds ?? 60,
-      token
-    )
-  );
-} /**
- * Cancel an ongoing payment operation
- * @param cancellationToken Token identifying the operation to cancel
- */
-export async function cancelPayment(
-  cancellationToken: string
-): Promise<PlugpagCancellationResult> {
-  return safeModuleCall('cancelPayment', () =>
-    PlugpagNitroModule.cancelPayment(cancellationToken)
-  );
-}
-
-/**
- * Configure global UI settings
- * @param configuration UI configuration object
- */
-export async function configureUI(
-  configuration: PlugpagUIConfiguration
-): Promise<boolean> {
-  const customMessages = JSON.stringify(configuration.messages || {});
-
-  return safeModuleCall('configureUI', () =>
-    PlugpagNitroModule.configureUI(
-      configuration.behavior?.showDefaultUI ?? true,
-      customMessages,
-      configuration.behavior?.allowCancellation ?? true,
-      configuration.behavior?.timeoutSeconds ?? 60
-    )
-  );
-}
-
-/**
  * Void/refund a previous payment transaction
  * @param refundRequest The refund request data
  */
@@ -295,7 +170,7 @@ export async function refundPayment(
     PlugpagNitroModule.voidPayment(
       refundRequest.transactionCode,
       refundRequest.transactionId,
-      refundRequest.printReceipt
+      refundRequest.printReceipt ?? true
     )
   );
 }
@@ -357,8 +232,6 @@ export function useTransactionPaymentEvent(): TransactionPaymentEvent {
   return event;
 }
 
-// React Hooks for UI State Management
-
 /**
  * Hook to monitor UI state events during payment operations
  * @param cancellationToken Optional token to filter events for specific operation
@@ -401,10 +274,10 @@ export function useUIStateEvent(cancellationToken?: string) {
 }
 
 /**
- * Hook for payment operations with cancellation support
- * @param onStateChange Optional callback for UI state changes
+ * Unified payment hook with cancellation support and flexible payment options
+ * This is the main hook for handling all payment operations
  */
-export function usePaymentWithCancellation(
+export function usePayment(
   onStateChange?: (state: UIState, event: UIStateEvent) => void
 ) {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -421,19 +294,43 @@ export function usePaymentWithCancellation(
     }
   }, [lastEvent, onStateChange]);
 
-  const startPayment = useCallback(
-    async (
-      paymentRequest: Omit<EnhancedPaymentRequest, 'cancellationToken'>
-    ): Promise<PlugpagTransactionResult> => {
+  const doPayment = useCallback(
+    async (options: PaymentOptions): Promise<PlugpagTransactionResult> => {
+      // Set default values for optional properties
+      const paymentOptions = {
+        installmentType:
+          options.installmentType ??
+          (options.type === PaymentTypes.DEBIT
+            ? InstallmentTypes.NO_INSTALLMENT
+            : InstallmentTypes.BUYER_INSTALLMENT),
+        installments: options.installments ?? 1,
+        printReceipt: options.printReceipt ?? true,
+        userReference: options.userReference ?? `payment-${Date.now()}`,
+        ...options,
+      };
+
       const token = `payment_${Date.now()}`;
       setCancellationToken(token);
       setIsProcessing(true);
 
       try {
-        const result = await doPaymentWithUI({
-          ...paymentRequest,
-          cancellationToken: token,
-        });
+        const config = paymentOptions.uiConfiguration || {};
+
+        const result = await safeModuleCall('doPaymentWithUI', () =>
+          PlugpagNitroModule.doPaymentWithUI(
+            paymentOptions.amount,
+            paymentOptions.type,
+            paymentOptions.installmentType,
+            paymentOptions.installments,
+            paymentOptions.printReceipt,
+            paymentOptions.userReference,
+            config.behavior?.showDefaultUI ?? true,
+            config.behavior?.allowCancellation ?? true,
+            config.behavior?.timeoutSeconds ?? 60,
+            token
+          )
+        );
+
         return result;
       } finally {
         setIsProcessing(false);
@@ -443,12 +340,14 @@ export function usePaymentWithCancellation(
     []
   );
 
-  const cancelCurrentPayment =
+  const cancelPayment =
     useCallback(async (): Promise<PlugpagCancellationResult | null> => {
       if (!cancellationToken) return null;
 
       try {
-        const result = await cancelPayment(cancellationToken);
+        const result = await safeModuleCall('cancelPayment', () =>
+          PlugpagNitroModule.cancelPayment(cancellationToken)
+        );
         setIsProcessing(false);
         setCancellationToken(null);
         clearState();
@@ -460,8 +359,8 @@ export function usePaymentWithCancellation(
     }, [cancellationToken, clearState]);
 
   return {
-    startPayment,
-    cancelCurrentPayment,
+    doPayment,
+    cancelPayment,
     isProcessing,
     canCancel: Boolean(cancellationToken),
     uiState,

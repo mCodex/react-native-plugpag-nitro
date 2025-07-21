@@ -12,9 +12,7 @@ import {
 
 import {
   useTransactionPaymentEvent,
-  doPayment,
-  doPixPaymentWithUI,
-  usePaymentWithCancellation,
+  usePayment,
   initializeAndActivatePinPad,
   refundPayment,
   getTerminalSerialNumber,
@@ -24,29 +22,27 @@ import {
   isPaymentSuccessful,
   getPaymentErrorMessage,
   type PlugpagTransactionResult,
-  type PaymentRequest,
-  type PlugpagUIConfiguration,
+  type PaymentOptions,
   type UIState,
   type UIStateEvent,
 } from 'react-native-plugpag-nitro';
 
 export default function App() {
-  const [isModalVisible, setIsModalVisible] = useState(false);
   const [lastPayment, setLastPayment] =
     useState<PlugpagTransactionResult | null>(null);
   const [terminalSerial, setTerminalSerial] = useState<string>('');
 
   const eventPayment = useTransactionPaymentEvent();
 
-  // Enhanced payment hook with cancellation support
+  // Use the simplified payment hook
   const {
-    startPayment,
-    cancelCurrentPayment,
+    doPayment,
+    cancelPayment,
     isProcessing,
     canCancel,
     uiState,
     lastEvent,
-  } = usePaymentWithCancellation((state: UIState, event: UIStateEvent) => {
+  } = usePayment((state: UIState, event: UIStateEvent) => {
     console.log('UI State changed:', state, event);
   });
 
@@ -59,31 +55,6 @@ export default function App() {
       console.error('Error getting terminal serial:', error);
       setTerminalSerial('Error getting serial');
     }
-
-    // Configure global UI settings
-    const setupGlobalUI = async () => {
-      try {
-        const { configureUI } = await import('react-native-plugpag-nitro');
-        await configureUI({
-          messages: {
-            insertCard: 'Insira ou aproxime seu cartão',
-            processing: 'Processando transação...',
-            approved: 'Transação aprovada!',
-            declined: 'Transação recusada',
-          },
-          behavior: {
-            showDefaultUI: true,
-            allowCancellation: true,
-            timeoutSeconds: 120,
-          },
-        });
-        console.log('Global UI configuration applied');
-      } catch (error) {
-        console.warn('Failed to configure global UI:', error);
-      }
-    };
-
-    setupGlobalUI();
   }, []);
 
   // Reusable error handler
@@ -97,29 +68,11 @@ export default function App() {
     }
   }, []);
 
-  // Enhanced payment handler with UI control and cancellation
-  const handlePaymentWithUI = useCallback(
-    async (paymentRequest: PaymentRequest, operationName: string) => {
+  // Unified payment handler using the new hook
+  const handlePayment = useCallback(
+    async (paymentOptions: PaymentOptions, operationName: string) => {
       try {
-        const uiConfig: PlugpagUIConfiguration = {
-          messages: {
-            insertCard: 'Por favor, insira ou aproxime o cartão',
-            processing: 'Processando pagamento...',
-            approved: 'Pagamento aprovado!',
-            declined: 'Pagamento recusado',
-          },
-          behavior: {
-            showDefaultUI: true,
-            allowCancellation: true,
-            timeoutSeconds: 120,
-          },
-        };
-
-        const result = await startPayment({
-          ...paymentRequest,
-          uiConfiguration: uiConfig,
-        });
-
+        const result = await doPayment(paymentOptions);
         setLastPayment(result);
 
         if (!isPaymentSuccessful(result)) {
@@ -136,92 +89,22 @@ export default function App() {
         handleError(error, operationName);
       }
     },
-    [startPayment, handleError]
+    [doPayment, handleError]
   );
-
-  // Enhanced PIX payment with custom UI
-  const handlePixPaymentWithUI = useCallback(async () => {
-    try {
-      const result = await doPixPaymentWithUI(
-        2500, // R$ 25,00
-        {
-          messages: {
-            insertCard: '📱 Aproxime seu celular ou cartão para PIX',
-            processing: '⏳ Processando PIX...',
-            approved: '✅ PIX aprovado! Transação concluída',
-            declined: '❌ PIX não autorizado',
-          },
-          behavior: {
-            showDefaultUI: true,
-            allowCancellation: true,
-            timeoutSeconds: 120,
-          },
-          styling: {
-            primaryColor: '#32D74B', // PIX green
-            backgroundColor: '#F8F9FA',
-            textColor: '#212529',
-          },
-        },
-        'pix-ui-demo'
-      );
-
-      setLastPayment(result);
-
-      if (!isPaymentSuccessful(result)) {
-        const errorMessage = getPaymentErrorMessage(result);
-        Alert.alert(
-          'PIX não autorizado',
-          errorMessage || 'Transação PIX não foi aprovada'
-        );
-        return;
-      }
-
-      Alert.alert('PIX Aprovado!', 'Pagamento PIX realizado com sucesso! 🎉');
-    } catch (error) {
-      handleError(error, 'PIX com UI');
-    }
-  }, [handleError]);
 
   // Handle cancellation
   const handleCancelPayment = useCallback(async () => {
     try {
-      const result = await cancelCurrentPayment();
+      const result = await cancelPayment();
       if (result?.success) {
         Alert.alert('Cancelado', 'Pagamento cancelado com sucesso');
       }
     } catch (error) {
       handleError(error, 'Cancelar pagamento');
     }
-  }, [cancelCurrentPayment, handleError]);
+  }, [cancelPayment, handleError]);
 
-  // Reusable payment handler with improved error handling
-  const handlePayment = useCallback(
-    async (paymentRequest: PaymentRequest, operationName: string) => {
-      try {
-        setIsModalVisible(true);
-
-        const data = await doPayment(paymentRequest);
-        setLastPayment(data);
-        setIsModalVisible(false);
-
-        if (!isPaymentSuccessful(data)) {
-          const errorMessage = getPaymentErrorMessage(data);
-          Alert.alert(
-            'Erro na transação',
-            errorMessage || 'Transação não aprovada'
-          );
-          return;
-        }
-
-        Alert.alert('Sucesso', `${operationName} concluído com sucesso`);
-      } catch (error) {
-        setIsModalVisible(false);
-        handleError(error, operationName);
-      }
-    },
-    [handleError]
-  );
-
+  // Terminal initialization
   const handleInitializeAndActivatePinPad = useCallback(async () => {
     try {
       const data = await initializeAndActivatePinPad('403938');
@@ -240,26 +123,49 @@ export default function App() {
     }
   }, [handleError]);
 
-  const handleDoPaymentCredit = useCallback(() => {
-    const paymentRequest = PaymentPresets.credit(2500, 1, 'test-credit-25');
-    handlePayment(paymentRequest, 'Pagamento no crédito');
+  // Payment handlers using presets
+  const handleCreditPayment = useCallback(() => {
+    const paymentOptions = PaymentPresets.credit(2500, 1, 'test-credit-25');
+    handlePayment(paymentOptions, 'Pagamento no crédito');
   }, [handlePayment]);
 
-  const handleDoPaymentDebit = useCallback(() => {
-    const paymentRequest = PaymentPresets.debit(2500, 'test-debit-25');
-    handlePayment(paymentRequest, 'Pagamento no débito');
+  const handleDebitPayment = useCallback(() => {
+    const paymentOptions = PaymentPresets.debit(2500, 'test-debit-25');
+    handlePayment(paymentOptions, 'Pagamento no débito');
   }, [handlePayment]);
 
-  const handleDoPaymentCreditHighValue = useCallback(() => {
-    const paymentRequest = PaymentPresets.credit(100000, 1, 'test-credit-1000');
-    handlePayment(paymentRequest, 'Pagamento R$ 1.000 no crédito');
+  const handlePixPayment = useCallback(() => {
+    const paymentOptions = PaymentPresets.pix(2500, 'test-pix-25');
+    handlePayment(paymentOptions, 'Pagamento PIX');
   }, [handlePayment]);
 
-  const handleDoPaymentPix = useCallback(() => {
-    const paymentRequest = PaymentPresets.pix(2500, 'test-pix-25');
-    handlePayment(paymentRequest, 'Pagamento PIX');
+  // PIX payment with custom UI
+  const handlePixPaymentWithCustomUI = useCallback(() => {
+    const pixOptions = {
+      ...PaymentPresets.pix(2500, 'pix-ui-demo'),
+      uiConfiguration: {
+        messages: {
+          insertCard: '📱 Aproxime seu celular ou cartão para PIX',
+          processing: '⏳ Processando PIX...',
+          approved: '✅ PIX aprovado! Transação concluída',
+          declined: '❌ PIX não autorizado',
+        },
+        behavior: {
+          showDefaultUI: true,
+          allowCancellation: true,
+          timeoutSeconds: 90,
+        },
+        styling: {
+          primaryColor: '#32D74B',
+          backgroundColor: '#F8F9FA',
+          textColor: '#212529',
+        },
+      },
+    };
+    handlePayment(pixOptions, 'Pagamento PIX com UI customizada');
   }, [handlePayment]);
 
+  // Refund handler
   const handleRefundLastTransaction = useCallback(async () => {
     if (!lastPayment?.transactionCode || !lastPayment?.transactionId) {
       Alert.alert('Erro', 'Não há transação para estornar');
@@ -267,15 +173,11 @@ export default function App() {
     }
 
     try {
-      setIsModalVisible(true);
-
       const response = await refundPayment({
         transactionCode: lastPayment.transactionCode,
         transactionId: lastPayment.transactionId,
         printReceipt: true,
       });
-
-      setIsModalVisible(false);
 
       if (!isPaymentSuccessful(response)) {
         Alert.alert('Estorno', 'Ocorreu um erro ao efetuar estorno');
@@ -285,7 +187,6 @@ export default function App() {
       Alert.alert('Sucesso', 'Estorno efetuado com sucesso');
       setLastPayment(null);
     } catch (error) {
-      setIsModalVisible(false);
       handleError(error, 'Estornar transação');
     }
   }, [lastPayment, handleError]);
@@ -294,7 +195,7 @@ export default function App() {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={[styles.titleHeader, styles.space]}>
-          React Native PlugPag Nitro
+          React Native PlugPag Nitro - Hook Style
         </Text>
         <Text style={[styles.serialText, styles.space]}>
           Terminal Serial: {terminalSerial}
@@ -309,52 +210,12 @@ export default function App() {
       </TouchableOpacity>
 
       <View style={styles.paymentSection}>
-        <Text style={styles.sectionTitle}>Pagamentos</Text>
-
-        <TouchableOpacity
-          onPress={handleDoPaymentCredit}
-          style={[styles.button, styles.space]}
-        >
-          <Text style={styles.textButton}>
-            Pagar {formatCurrency(2500)} no crédito
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={handleDoPaymentDebit}
-          style={[styles.button, styles.space]}
-        >
-          <Text style={styles.textButton}>
-            Pagar {formatCurrency(2500)} no débito
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={handleDoPaymentCreditHighValue}
-          style={[styles.button, styles.space, styles.highValueButton]}
-        >
-          <Text style={[styles.textButton, styles.highValueText]}>
-            Pagar {formatCurrency(100000)} no crédito
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={handleDoPaymentPix}
-          style={[styles.button, styles.space, styles.pixButton]}
-        >
-          <Text style={[styles.textButton, styles.pixText]}>
-            Pagar {formatCurrency(2500)} via PIX
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.actionSection}>
-        <Text style={styles.sectionTitle}>UI Avançada com Cancelamento</Text>
+        <Text style={styles.sectionTitle}>Pagamentos com Hook</Text>
 
         {/* UI State Display */}
         {uiState && (
           <View style={styles.uiStateContainer}>
-            <Text style={styles.uiStateTitle}>Estado do UI:</Text>
+            <Text style={styles.uiStateTitle}>Estado do Pagamento:</Text>
             <Text style={styles.uiStateText}>{uiState}</Text>
             {lastEvent?.message && (
               <Text style={styles.uiStateMessage}>{lastEvent.message}</Text>
@@ -363,38 +224,44 @@ export default function App() {
         )}
 
         <TouchableOpacity
-          onPress={() =>
-            handlePaymentWithUI(PaymentPresets.credit(2500), 'Pagamento com UI')
-          }
-          style={[styles.button, styles.space, styles.uiButton]}
+          onPress={handleCreditPayment}
+          style={[styles.button, styles.space]}
           disabled={isProcessing}
         >
-          <Text style={[styles.textButton, styles.uiText]}>
+          <Text style={styles.textButton}>
             {isProcessing
               ? 'Processando...'
-              : `Pagar ${formatCurrency(2500)} com UI Customizada`}
+              : `Pagar ${formatCurrency(2500)} no crédito`}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() =>
-            handlePaymentWithUI(PaymentPresets.debit(2500), 'Débito com UI')
-          }
-          style={[styles.button, styles.space, styles.uiButton]}
+          onPress={handleDebitPayment}
+          style={[styles.button, styles.space]}
           disabled={isProcessing}
         >
-          <Text style={[styles.textButton, styles.uiText]}>
-            Pagar {formatCurrency(2500)} no débito com UI
+          <Text style={styles.textButton}>
+            Pagar {formatCurrency(2500)} no débito
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={handlePixPaymentWithUI}
+          onPress={handlePixPayment}
+          style={[styles.button, styles.space, styles.pixButton]}
+          disabled={isProcessing}
+        >
+          <Text style={[styles.textButton, styles.pixText]}>
+            Pagar {formatCurrency(2500)} via PIX
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={handlePixPaymentWithCustomUI}
           style={[styles.button, styles.space, styles.pixUIButton]}
           disabled={isProcessing}
         >
           <Text style={[styles.textButton, styles.pixUIText]}>
-            💰 Pagar {formatCurrency(2500)} via PIX com UI
+            💰 PIX com UI Customizada
           </Text>
         </TouchableOpacity>
 
@@ -404,7 +271,7 @@ export default function App() {
             style={[styles.button, styles.space, styles.cancelButton]}
           >
             <Text style={[styles.textButton, styles.cancelText]}>
-              Cancelar Pagamento
+              ❌ Cancelar Pagamento
             </Text>
           </TouchableOpacity>
         )}
@@ -414,13 +281,14 @@ export default function App() {
         <Text style={styles.sectionTitle}>Ações</Text>
 
         <TouchableOpacity
-          disabled={!lastPayment?.transactionId}
+          disabled={!lastPayment?.transactionId || isProcessing}
           onPress={handleRefundLastTransaction}
           style={[
             styles.button,
             styles.space,
             styles.refundButton,
-            !lastPayment?.transactionId && styles.disabledButton,
+            (!lastPayment?.transactionId || isProcessing) &&
+              styles.disabledButton,
           ]}
         >
           <Text style={[styles.textButton, styles.refundText]}>
@@ -445,20 +313,39 @@ export default function App() {
             <Text style={styles.paymentInfoText}>
               Bandeira: {lastPayment.cardBrand}
             </Text>
+            <Text style={styles.paymentInfoText}>
+              Resultado:{' '}
+              {isPaymentSuccessful(lastPayment) ? '✅ Aprovado' : '❌ Negado'}
+            </Text>
           </View>
         </View>
       )}
 
-      <Modal transparent visible={isModalVisible}>
+      <Modal transparent visible={isProcessing}>
         <View style={styles.centeredView}>
           <View style={styles.modalView}>
             <Text style={styles.modalTitle}>
-              {eventPayment.message || 'PROCESSANDO'}
+              {uiState === 'PROCESSING'
+                ? 'PROCESSANDO'
+                : uiState === 'WAITING_FOR_CARD'
+                  ? 'AGUARDANDO CARTÃO'
+                  : eventPayment.message || 'PROCESSANDO'}
             </Text>
 
             <View style={styles.modalBox}>
               <ActivityIndicator size="large" color="#00DDFC" />
             </View>
+
+            {canCancel && (
+              <TouchableOpacity
+                onPress={handleCancelPayment}
+                style={[styles.button, styles.cancelButton]}
+              >
+                <Text style={[styles.textButton, styles.cancelText]}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </Modal>

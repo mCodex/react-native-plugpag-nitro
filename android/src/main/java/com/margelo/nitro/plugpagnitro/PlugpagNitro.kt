@@ -209,15 +209,15 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
   }
 
   override fun doPaymentWithUI(
-    amount: Double,
-    type: Double,
-    installmentType: Double,
-    installments: Double,
+    amount: Int,
+    type: Int,
+    installmentType: Int,
+    installments: Int,
     printReceipt: Boolean,
     userReference: String,
     showDefaultUI: Boolean,
     allowCancellation: Boolean,
-    timeoutSeconds: Double,
+    timeoutSeconds: Int,
     cancellationToken: String
   ): Promise<PlugpagTransactionResult> {
     return Promise.async {
@@ -395,8 +395,21 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
             val cardData = PlugPagNearFieldCardData()
             val result = plugPag.readFromNFCCard(cardData)
             
+            // Extract UID from result - typically the first slot contains the card UID
+            val uid = if (result.result == PlugPag.NFC_RET_OK && result.slots.isNotEmpty()) {
+              // The UID is usually in the first slot as a byte array
+              val uidBytes = result.slots[0]["UID"] ?: result.slots[0]["uid"] ?: ByteArray(0)
+              if (uidBytes.isNotEmpty()) {
+                uidBytes.joinToString("") { "%02X".format(it) }
+              } else {
+                "UNKNOWN"
+              }
+            } else {
+              "UNKNOWN"
+            }
+            
             PlugpagNFCResult(
-              uid = cardData.cardSerialNumber ?: "UNKNOWN"
+              uid = uid
             )
           } catch (e: Exception) {
             Log.e(TAG, "Error reading NFC card", e)
