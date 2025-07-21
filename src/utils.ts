@@ -41,10 +41,10 @@ export function parseCurrency(currencyString: string): number {
  */
 export function createPaymentOptions(
   amount: number,
-  type: PaymentTypes,
+  type: number,
   options: {
     installments?: number;
-    installmentType?: InstallmentTypes;
+    installmentType?: number;
     printReceipt?: boolean;
     userReference?: string;
   } = {}

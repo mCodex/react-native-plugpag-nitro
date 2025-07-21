@@ -47,65 +47,6 @@ export interface PlugpagAbortResult {
   result: boolean;
 }
 
-export interface PlugpagNFCResult {
-  uid: string;
-}
-
-export interface PlugpagUIConfiguration {
-  // Custom messages for different states
-  messages?: {
-    insertCard?: string;
-    approximateCard?: string;
-    enterPassword?: string;
-    processing?: string;
-    approved?: string;
-    declined?: string;
-    cancelled?: string;
-    error?: string;
-  };
-
-  // UI behavior settings
-  behavior?: {
-    showDefaultUI?: boolean; // Use PagBank's default UI
-    allowCancellation?: boolean; // Allow user to cancel operations
-    timeoutSeconds?: number; // Timeout for card insertion/approximation
-    vibrationEnabled?: boolean; // Enable vibration feedback
-    soundEnabled?: boolean; // Enable sound feedback
-  };
-
-  // Custom styling (for future implementation)
-  styling?: {
-    primaryColor?: string;
-    backgroundColor?: string;
-    textColor?: string;
-    fontFamily?: string;
-  };
-}
-
-export interface PlugpagPaymentOptions {
-  uiConfiguration?: PlugpagUIConfiguration;
-  cancellationToken?: string; // Token to identify cancellable operations
-}
-
-export type UIState =
-  | 'WAITING_FOR_CARD'
-  | 'PROCESSING'
-  | 'COMPLETED'
-  | 'ERROR'
-  | 'CANCELLED';
-
-export interface UIStateEvent {
-  state: UIState;
-  message?: string;
-  cancellationToken?: string;
-  timestamp: number;
-}
-
-export interface PlugpagCancellationResult {
-  success: boolean;
-  message?: string;
-}
-
 export interface PlugpagConstants {
   // Payment Types
   PAYMENT_CREDITO: number;
@@ -155,8 +96,7 @@ export interface PlugpagNitro extends HybridObject<{ android: 'kotlin' }> {
   ): Promise<PlugpagInitializationResult>;
 
   /**
-   * Process a payment transaction - optimized with flattened parameters
-   *
+   * Process a payment transaction
    * @param amount Payment amount in cents
    * @param type Payment type (1=Credit, 2=Debit, 3=Voucher, 5=PIX)
    * @param installmentType Installment type (1=No installment, 2=Seller, 3=Buyer)
@@ -174,52 +114,6 @@ export interface PlugpagNitro extends HybridObject<{ android: 'kotlin' }> {
   ): Promise<PlugpagTransactionResult>;
 
   /**
-   * Process a payment transaction with flexible UI configuration
-   * @param amount Payment amount in cents
-   * @param type Payment type (1=Credit, 2=Debit, 3=Voucher, 5=PIX)
-   * @param installmentType Installment type (1=No installment, 2=Seller, 3=Buyer)
-   * @param installments Number of installments
-   * @param printReceipt Whether to print receipt
-   * @param userReference Optional user reference
-   * @param showDefaultUI Whether to show PagBank's default UI
-   * @param allowCancellation Whether to allow cancellation
-   * @param timeoutSeconds Timeout for operations in seconds
-   * @param cancellationToken Token to identify this operation for cancellation
-   */
-  doPaymentWithUI(
-    amount: number,
-    type: number,
-    installmentType: number,
-    installments: number,
-    printReceipt: boolean,
-    userReference: string,
-    showDefaultUI: boolean,
-    allowCancellation: boolean,
-    timeoutSeconds: number,
-    cancellationToken: string
-  ): Promise<PlugpagTransactionResult>;
-
-  /**
-   * Cancel an ongoing payment operation
-   * @param cancellationToken Token identifying the operation to cancel
-   */
-  cancelPayment(cancellationToken: string): Promise<PlugpagCancellationResult>;
-
-  /**
-   * Configure UI settings globally
-   * @param showDefaultUI Whether to show PagBank's default UI
-   * @param customMessages JSON string with custom messages
-   * @param allowCancellation Whether to allow cancellation
-   * @param timeoutSeconds Default timeout in seconds
-   */
-  configureUI(
-    showDefaultUI: boolean,
-    customMessages: string,
-    allowCancellation: boolean,
-    timeoutSeconds: number
-  ): Promise<boolean>;
-
-  /**
    * Void/refund a previous payment transaction - optimized with flattened parameters
    * @param transactionCode Transaction code to void
    * @param transactionId Transaction ID to void
@@ -235,11 +129,6 @@ export interface PlugpagNitro extends HybridObject<{ android: 'kotlin' }> {
    * Abort the current ongoing transaction
    */
   doAbort(): Promise<PlugpagAbortResult>;
-
-  /**
-   * Read an NFC card
-   */
-  readNFCCard(): Promise<PlugpagNFCResult>;
 
   /**
    * Print a custom receipt from file path
