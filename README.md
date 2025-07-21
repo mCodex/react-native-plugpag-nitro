@@ -16,6 +16,8 @@
 - 🔥 **High Performance** - Direct JSI bindings, zero-copy data transfer
 - 🎯 **TypeScript Enums** - Type-safe payment types, installment types, and error codes
 - 💰 **All Payment Types** - Credit, Debit, PIX, and Voucher support
+- 📱 **Real-time Events** - Payment progress monitoring with event hooks
+- 🎣 **React Hooks** - Modern hook-based API for seamless integration
 - 📱 **Android Focused** - Optimized for PlugPag terminals
 - 🛡️ **TypeScript Native** - Full type safety and IntelliSense support
 - ⚡ **Simple API** - Clean function-based approach with payment presets
@@ -64,6 +66,52 @@ if (isTransactionSuccessful(result)) {
 }
 ```
 
+### Modern Hook-Based Approach
+
+```typescript
+import {
+  PaymentType,
+  usePaymentFlow,
+  useTransactionPaymentEvent,
+  PaymentPresets
+} from 'react-native-plugpag-nitro';
+
+function PaymentComponent() {
+  const paymentFlow = usePaymentFlow();
+  const paymentEvent = useTransactionPaymentEvent();
+
+  const handlePayment = async () => {
+    try {
+      const result = await paymentFlow.executePayment(
+        PaymentPresets.creditCard(2500, 1)
+      );
+      
+      if (paymentFlow.isTransactionSuccessful) {
+        console.log('Payment successful!', result);
+      }
+    } catch (error) {
+      console.error('Payment failed:', error);
+    }
+  };
+
+  return (
+    <View>
+      <Button 
+        title="Pay R$ 25.00" 
+        onPress={handlePayment}
+        disabled={paymentFlow.isProcessing}
+      />
+      
+      {paymentEvent.code > 0 && (
+        <Text>Status: {paymentEvent.eventName}</Text>
+      )}
+      
+      {paymentFlow.isProcessing && <ActivityIndicator />}
+    </View>
+  );
+}
+```
+
 ---
 
 ## 📚 API Reference
@@ -101,6 +149,20 @@ enum ErrorCode {
 }
 ```
 
+#### PaymentEventCode
+```typescript
+enum PaymentEventCode {
+  CARD_INSERTED = 1,         // Card inserted
+  CARD_REMOVED = 2,          // Card removed
+  WAITING_CARD = 3,          // Waiting for card
+  CARD_READ = 4,             // Card read successfully
+  PAYMENT_PROCESSING = 5,    // Payment processing
+  PAYMENT_COMPLETED = 6,     // Payment completed
+  PAYMENT_CANCELLED = 7,     // Payment cancelled
+  // ... and more event codes
+}
+```
+
 ### 💳 Core Functions
 
 #### `initializeAndActivatePinPad(activationCode: string)`
@@ -134,6 +196,18 @@ const result = await doPayment({
 });
 ```
 
+#### `doPaymentWithEvents(options: PaymentOptions)`
+Processes a payment with real-time event monitoring.
+
+```typescript
+const result = await doPaymentWithEvents({
+  amount: 2500,
+  type: PaymentType.CREDIT,
+  installmentType: InstallmentType.NO_INSTALLMENT
+});
+// Events are automatically tracked via useTransactionPaymentEvent hook
+```
+
 #### `refundPayment(options)`
 Refunds a previous payment transaction.
 
@@ -143,6 +217,62 @@ const result = await refundPayment({
   transactionId: 'def456',
   printReceipt: true
 });
+```
+
+### 🎣 React Hooks
+
+#### `usePaymentFlow()`
+Comprehensive payment hook with built-in state management and event tracking.
+
+```typescript
+const {
+  isProcessing,           // boolean - payment in progress
+  currentTransaction,     // PlugpagTransactionResult | null
+  paymentEvent,          // Current payment event
+  executePayment,        // Function to execute payment
+  resetFlow,            // Reset flow state
+  isTransactionSuccessful, // boolean - transaction success status
+  transactionError      // string | null - error message
+} = usePaymentFlow();
+
+// Usage
+const handlePayment = async () => {
+  try {
+    const result = await executePayment({
+      amount: 2500,
+      type: PaymentType.CREDIT
+    });
+    
+    if (isTransactionSuccessful) {
+      console.log('Payment successful!');
+    }
+  } catch (error) {
+    console.error('Payment failed:', transactionError);
+  }
+};
+```
+
+#### `useTransactionPaymentEvent()`
+Real-time payment event monitoring hook.
+
+```typescript
+const paymentEvent = useTransactionPaymentEvent();
+
+// paymentEvent contains:
+// {
+//   code: number,           // PaymentEventCode
+//   eventName?: string,     // Human-readable event name
+//   userReference?: string, // User reference
+//   amount?: string,        // Amount
+//   resetEvent?: () => void // Function to reset event
+// }
+
+// Usage in component
+useEffect(() => {
+  if (paymentEvent.code > 0) {
+    console.log('Payment event:', paymentEvent.eventName);
+  }
+}, [paymentEvent]);
 ```
 
 ### 🎯 Payment Presets
@@ -178,13 +308,165 @@ getTerminalSerialNumber(): string
 
 // Get available constants
 getConstants(): PlugpagConstants
+
+// Abort current transaction
+doAbort(): Promise<PlugpagAbortResult>
+
+// Print custom receipt from file
+print(filePath: string): Promise<void>
+
+// Reprint last customer receipt
+reprintCustomerReceipt(): Promise<void>
 ```
 
 ---
 
 ## 💡 Usage Examples
 
-### Basic Payment Flow
+### Hook-Based Payment Flow (Recommended)
+
+```typescript
+import React, { useState, useEffect } from 'react';
+import {
+  PaymentType,
+  InstallmentType,
+  PaymentEventCode,
+  usePaymentFlow,
+  useTransactionPaymentEvent,
+  PaymentPresets,
+  initializeAndActivatePinPad
+} from 'react-native-plugpag-nitro';
+
+function ModernPaymentScreen() {
+  const [isInitialized, setIsInitialized] = useState(false);
+  const paymentFlow = usePaymentFlow();
+  const paymentEvent = useTransactionPaymentEvent();
+
+  // Initialize terminal on mount
+  useEffect(() => {
+    const initialize = async () => {
+      try {
+        const result = await initializeAndActivatePinPad('403938');
+        if (result.result === 0) {
+          setIsInitialized(true);
+        }
+      } catch (error) {
+        console.error('Initialization failed:', error);
+      }
+    };
+    
+    initialize();
+  }, []);
+
+  // Monitor payment events
+  useEffect(() => {
+    if (paymentEvent.code > 0) {
+      console.log('Payment event:', paymentEvent.eventName);
+      
+      // Handle specific events
+      switch (paymentEvent.code) {
+        case PaymentEventCode.CARD_INSERTED:
+          console.log('Card inserted, please wait...');
+          break;
+        case PaymentEventCode.PAYMENT_PROCESSING:
+          console.log('Processing payment...');
+          break;
+        case PaymentEventCode.PAYMENT_COMPLETED:
+          console.log('Payment completed!');
+          break;
+      }
+    }
+  }, [paymentEvent]);
+
+  const handleCreditPayment = async () => {
+    if (!isInitialized) {
+      Alert.alert('Error', 'Terminal not initialized');
+      return;
+    }
+
+    try {
+      const result = await paymentFlow.executePayment({
+        amount: 2500, // R$ 25.00
+        type: PaymentType.CREDIT,
+        installmentType: InstallmentType.NO_INSTALLMENT,
+        userReference: `payment-${Date.now()}`
+      });
+
+      if (paymentFlow.isTransactionSuccessful) {
+        Alert.alert('Success', 'Payment approved!', [
+          { text: 'OK', onPress: () => paymentFlow.resetFlow() }
+        ]);
+      } else {
+        Alert.alert('Failed', paymentFlow.transactionError || 'Payment failed');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  const handlePixPayment = async () => {
+    try {
+      const result = await paymentFlow.executePayment(
+        PaymentPresets.pix(5000) // R$ 50.00
+      );
+      
+      if (paymentFlow.isTransactionSuccessful) {
+        Alert.alert('PIX Success', 'PIX payment completed!');
+      }
+    } catch (error) {
+      Alert.alert('PIX Error', error.message);
+    }
+  };
+
+  return (
+    <View style={{ padding: 20 }}>
+      <Text style={{ fontSize: 18, marginBottom: 20 }}>
+        Terminal: {isInitialized ? '✅ Ready' : '❌ Not Ready'}
+      </Text>
+      
+      {/* Payment Event Display */}
+      {paymentEvent.code > 0 && (
+        <View style={{ padding: 10, backgroundColor: '#e3f2fd', marginBottom: 10 }}>
+          <Text>Status: {paymentEvent.eventName}</Text>
+        </View>
+      )}
+      
+      {/* Processing Indicator */}
+      {paymentFlow.isProcessing && (
+        <View style={{ padding: 10, backgroundColor: '#fff3e0', marginBottom: 10 }}>
+          <ActivityIndicator size="small" />
+          <Text>Processing payment...</Text>
+        </View>
+      )}
+      
+      <Button 
+        title="Credit Card R$ 25.00"
+        onPress={handleCreditPayment}
+        disabled={!isInitialized || paymentFlow.isProcessing}
+      />
+      
+      <Button 
+        title="PIX R$ 50.00"
+        onPress={handlePixPayment}
+        disabled={!isInitialized || paymentFlow.isProcessing}
+      />
+      
+      {/* Transaction Result Display */}
+      {paymentFlow.currentTransaction && (
+        <View style={{ marginTop: 20, padding: 10, backgroundColor: '#f5f5f5' }}>
+          <Text style={{ fontWeight: 'bold' }}>Last Transaction:</Text>
+          <Text>Code: {paymentFlow.currentTransaction.transactionCode}</Text>
+          <Text>Amount: R$ {(parseInt(paymentFlow.currentTransaction.amount) / 100).toFixed(2)}</Text>
+          <Text>Status: {paymentFlow.isTransactionSuccessful ? '✅ Approved' : '❌ Declined'}</Text>
+          <Text>Date: {paymentFlow.currentTransaction.date} {paymentFlow.currentTransaction.time}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+```
+
+### Basic Payment Flow (Function-Based)
 
 ```typescript
 import React, { useState } from 'react';
@@ -193,13 +475,14 @@ import {
   InstallmentType,
   ErrorCode,
   doPayment,
+  doPaymentWithEvents,
   initializeAndActivatePinPad,
   isTransactionSuccessful,
   getTransactionError,
   PaymentPresets
 } from 'react-native-plugpag-nitro';
 
-function PaymentScreen() {
+function BasicPaymentScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastPayment, setLastPayment] = useState(null);
 
@@ -221,12 +504,7 @@ function PaymentScreen() {
       setIsProcessing(true);
       
       // Using preset for simplicity
-      const paymentOptions = PaymentPresets.creditCard(2500, 1);
-      const result = await doPayment({
-        ...paymentOptions,
-        userReference: 'order-12345'
-      });
-
+      const result = await doPayment(PaymentPresets.creditCard(2500, 1));
       setLastPayment(result);
 
       if (isTransactionSuccessful(result)) {
@@ -242,22 +520,20 @@ function PaymentScreen() {
     }
   };
 
-  const handleCustomPayment = async () => {
+  const handlePaymentWithEvents = async () => {
     try {
       setIsProcessing(true);
       
-      // Custom payment with enum types
-      const result = await doPayment({
+      // Payment with automatic event tracking
+      const result = await doPaymentWithEvents({
         amount: 5000, // R$ 50.00
         type: PaymentType.CREDIT,
         installmentType: InstallmentType.BUYER_INSTALLMENT,
-        installments: 3,
-        printReceipt: true,
-        userReference: 'custom-payment-3x'
+        installments: 3
       });
 
       if (isTransactionSuccessful(result)) {
-        Alert.alert('Success', 'Custom payment approved!');
+        Alert.alert('Success', 'Payment with events completed!');
       }
     } catch (error) {
       Alert.alert('Error', error.message);
@@ -277,8 +553,8 @@ function PaymentScreen() {
       />
       
       <Button 
-        title="Custom 3x Payment R$ 50.00"
-        onPress={handleCustomPayment}
+        title="Payment with Events R$ 50.00 (3x)"
+        onPress={handlePaymentWithEvents}
         disabled={isProcessing}
       />
       
@@ -288,6 +564,47 @@ function PaymentScreen() {
           <Text>Code: {lastPayment.transactionCode}</Text>
           <Text>Amount: {lastPayment.amount}</Text>
           <Text>Status: {isTransactionSuccessful(lastPayment) ? 'Approved' : 'Declined'}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+```
+
+### Real-time Event Monitoring
+
+```typescript
+import { useTransactionPaymentEvent, PaymentEventCode } from 'react-native-plugpag-nitro';
+
+function PaymentEventMonitor() {
+  const paymentEvent = useTransactionPaymentEvent();
+
+  const getEventColor = (code: number) => {
+    if (code >= PaymentEventCode.CARD_INSERTED && code <= PaymentEventCode.WAITING_CARD) {
+      return '#007AFF'; // Blue for card events
+    } else if (code === PaymentEventCode.PAYMENT_PROCESSING) {
+      return '#FF9500'; // Orange for processing
+    } else if (code === PaymentEventCode.PAYMENT_COMPLETED) {
+      return '#34C759'; // Green for success
+    }
+    return '#8E8E93'; // Gray for others
+  };
+
+  return (
+    <View>
+      {paymentEvent.code > 0 && (
+        <View style={{
+          padding: 10,
+          backgroundColor: getEventColor(paymentEvent.code),
+          borderRadius: 8,
+          marginVertical: 5
+        }}>
+          <Text style={{ color: 'white', fontWeight: 'bold' }}>
+            {paymentEvent.eventName || `Event Code: ${paymentEvent.code}`}
+          </Text>
+          {paymentEvent.amount && (
+            <Text style={{ color: 'white' }}>Amount: {paymentEvent.amount}</Text>
+          )}
         </View>
       )}
     </View>
@@ -313,39 +630,6 @@ const handlePixPayment = async () => {
     }
   } catch (error) {
     Alert.alert('PIX Error', error.message);
-  }
-};
-```
-
-### Multiple Payment Types
-
-```typescript
-const paymentTypes = [
-  {
-    title: '💳 Credit Card',
-    preset: PaymentPresets.creditCard(2500, 1),
-    color: '#007AFF'
-  },
-  {
-    title: '💰 Debit Card', 
-    preset: PaymentPresets.debitCard(2500),
-    color: '#34C759'
-  },
-  {
-    title: '📱 PIX',
-    preset: PaymentPresets.pix(2500),
-    color: '#32D74B'
-  }
-];
-
-const handlePayment = (preset, title) => async () => {
-  const result = await doPayment({
-    ...preset,
-    userReference: `payment-${Date.now()}`
-  });
-  
-  if (isTransactionSuccessful(result)) {
-    Alert.alert('Success', `${title} payment approved!`);
   }
 };
 ```
