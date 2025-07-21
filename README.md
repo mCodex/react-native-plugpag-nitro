@@ -135,9 +135,36 @@ const payment = await doPayment({
 
 ### Android Configuration
 
-The PlugPag wrapper (`br.com.uol.pagseguro.plugpagservice.wrapper:wrapper:1.30.51`) is automatically included as a dependency.
+The library automatically includes the PlugPag wrapper, but you need to ensure proper repository access:
 
-That's it! No additional setup is required for the wrapper.
+#### 1. Add PlugPag repository to `android/build.gradle`:
+
+```groovy
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven {
+            url 'https://github.com/pagseguro/PlugPagServiceWrapper/raw/master'
+        }
+    }
+}
+```
+
+#### 2. Ensure Kotlin support in `android/build.gradle`:
+
+```groovy
+buildscript {
+    ext.kotlin_version = '1.9.0'
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+```
+
+#### 3. That's it! 🎉
+
+The PlugPag wrapper (`br.com.uol.pagseguro.plugpagservice.wrapper:wrapper:1.30.51`) is automatically included as a dependency.
 
 ---
 
@@ -420,12 +447,6 @@ We love your input! Check out our [Contributing Guide](CONTRIBUTING.md) for deta
 MIT © [Mateus Andrade](https://github.com/mCodex)
 
 ---
-
-## 🆘 Support
-
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/mCodex/react-native-plugpag-nitro/issues)
-- 💬 **Questions**: [GitHub Discussions](https://github.com/mCodex/react-native-plugpag-nitro/discussions)
-- 📧 **Email**: mat.andrade@live.com
 
 ### PagSeguro Support
 
