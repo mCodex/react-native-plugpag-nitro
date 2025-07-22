@@ -23,13 +23,13 @@ import {
   initializeAndActivatePinPad,
   doPayment,
   generatePixQRCode,
-  useTransactionPaymentEvent,
+  useTransactionEvent,
   PaymentType,
   ErrorCode
 } from 'react-native-plugpag-nitro';
 
 function PaymentScreen() {
-  const paymentEvent = useTransactionPaymentEvent();
+  const paymentEvent = useTransactionEvent();
 
   const handlePayment = async () => {
     // Initialize terminal
@@ -83,11 +83,11 @@ Generate PIX QR code string.
 const qrString = await generatePixQRCode(2500); // R$ 25.00
 ```
 
-#### `useTransactionPaymentEvent()`
+#### `useTransactionEvent()`
 Real-time payment event monitoring hook.
 
 ```typescript
-const paymentEvent = useTransactionPaymentEvent();
+const paymentEvent = useTransactionEvent();
 // Returns: { code: number, message: string, customMessage?: string }
 ```
 
@@ -217,11 +217,11 @@ const result = await refundPayment({
 ```
 
 ### 🎣 React Hooks
-#### `useTransactionPaymentEvent()`
+#### `useTransactionEvent()`
 Real-time payment event monitoring hook to track status updates during transactions.
 
 ```typescript
-const paymentEvent = useTransactionPaymentEvent();
+const paymentEvent = useTransactionEvent();
 
 useEffect(() => {
   if (paymentEvent.code > 0) {
@@ -231,11 +231,11 @@ useEffect(() => {
 ```
 
 ### 🎣 React Hooks
-#### `useTransactionPaymentEvent()`
+#### `useTransactionEvent()`
 Real-time payment event monitoring hook to track status updates during transactions.
 
 ```typescript
-const paymentEvent = useTransactionPaymentEvent();
+const paymentEvent = useTransactionEvent();
 
 // paymentEvent contains:
 // {
@@ -279,7 +279,7 @@ import {
   PaymentType,
   ErrorCode,
   doPayment,
-  useTransactionPaymentEvent,
+  useTransactionEvent,
   initializeAndActivatePinPad,
   generatePixQRCode
 } from 'react-native-plugpag-nitro';
@@ -287,7 +287,7 @@ import {
 function PaymentScreen() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const paymentEvent = useTransactionPaymentEvent();
+  const paymentEvent = useTransactionEvent();
 
   // Initialize terminal on mount
   useEffect(() => {

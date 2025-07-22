@@ -5,6 +5,11 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
 
 class PlugpagEventEmitter(private val reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
+    init {
+        // Save instance for emitting events
+        setInstance(this)
+    }
+    
     override fun getName(): String {
         return "PlugpagEventEmitter"
     }

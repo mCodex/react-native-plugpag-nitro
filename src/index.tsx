@@ -113,6 +113,7 @@ export async function doPayment(options: {
   };
 
   return safeModuleCall('doPayment', () =>
+    // Use native doPayment (with built-in events)
     PlugpagNitroModule.doPayment(
       paymentOptions.amount,
       paymentOptions.type,
@@ -133,7 +134,9 @@ export async function doPayment(options: {
  * - Error notifications
  * - Transaction completion status
  */
-export function useTransactionPaymentEvent(): PaymentEvent {
+export function useTransactionEvent(): PaymentEvent & {
+  resetEvent: () => void;
+} {
   const [paymentEvent, setPaymentEvent] = useState<PaymentEvent>({
     code: PaymentEventCode.WAITING_CARD,
     message: 'Aguardando cartão...',
@@ -146,7 +149,6 @@ export function useTransactionPaymentEvent(): PaymentEvent {
         setPaymentEvent(event);
       }
     );
-
     return () => {
       subscription.remove();
     };
@@ -162,7 +164,7 @@ export function useTransactionPaymentEvent(): PaymentEvent {
   return {
     ...paymentEvent,
     resetEvent,
-  } as PaymentEvent & { resetEvent: () => void };
+  };
 }
 
 /**
@@ -250,7 +252,7 @@ export default {
   reprintCustomerReceipt,
 
   // Enhanced payment event listener
-  useTransactionPaymentEvent,
+  useTransactionEvent,
 
   // Enums
   PaymentType,

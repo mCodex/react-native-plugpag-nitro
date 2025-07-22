@@ -184,25 +184,6 @@ export interface PlugpagNitro extends HybridObject<{ android: 'kotlin' }> {
   ): Promise<PlugpagTransactionResult>;
 
   /**
-   * Process a payment transaction with real-time events
-   * This method emits payment events during the transaction flow
-   * @param amount Payment amount in cents
-   * @param type Payment type (PaymentType.CREDIT, PaymentType.DEBIT, etc.)
-   * @param installmentType Installment type (InstallmentType.NO_INSTALLMENT, etc.)
-   * @param installments Number of installments
-   * @param printReceipt Whether to print receipt
-   * @param userReference Optional user reference
-   */
-  doPaymentWithEvents(
-    amount: number,
-    type: PaymentType,
-    installmentType: InstallmentType,
-    installments: number,
-    printReceipt: boolean,
-    userReference: string
-  ): Promise<PlugpagTransactionResult>;
-
-  /**
    * Refund a previous payment transaction
    * @param transactionCode Transaction code to refund
    * @param transactionId Transaction ID to refund

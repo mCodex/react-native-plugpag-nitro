@@ -7,7 +7,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  DeviceEventEmitter,
 } from 'react-native';
 import {
   type PlugpagTransactionResult,
@@ -15,7 +14,7 @@ import {
   doPayment,
   refundPayment,
   generatePixQRCode,
-  useTransactionPaymentEvent,
+  useTransactionEvent,
   getTerminalSerialNumber,
   PaymentType,
   ErrorCode,
@@ -24,23 +23,16 @@ import {
 
 export default function App() {
   const [isProcessing, setIsProcessing] = useState(false);
+
   const [terminalSerial, setTerminalSerial] = useState<string>('N/A');
+
   const [lastPayment, setLastPayment] =
     useState<PlugpagTransactionResult | null>(null);
+
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Real-time payment events
-  const paymentEvent = useTransactionPaymentEvent();
-
-  // Test event emitter
-  const testEventEmitter = () => {
-    console.log('Testing event emission...');
-    DeviceEventEmitter.emit('paymentEvent', {
-      code: 1001,
-      message: 'Teste manual de evento',
-      customMessage: 'Evento disparado do app',
-    });
-  };
+  const paymentEvent = useTransactionEvent();
 
   // Get terminal serial on mount
   useEffect(() => {
@@ -224,18 +216,6 @@ export default function App() {
         </Text>
       </View>
 
-      {/* Real-time Event Display */}
-      <View style={styles.debugContainer}>
-        <Text style={styles.debugTitle}>Estado do Evento:</Text>
-        <Text style={styles.debugText}>Código: {paymentEvent.code}</Text>
-        <Text style={styles.debugText}>Mensagem: {paymentEvent.message}</Text>
-        {paymentEvent.customMessage && (
-          <Text style={styles.debugText}>
-            Custom: {paymentEvent.customMessage}
-          </Text>
-        )}
-      </View>
-
       {paymentEvent.code > 0 && (
         <View
           style={[
@@ -295,10 +275,6 @@ export default function App() {
 
       <TouchableOpacity style={styles.button} onPress={handleGeneratePix}>
         <Text style={styles.buttonText}>Gerar QR PIX - R$ 50,00</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.button} onPress={testEventEmitter}>
-        <Text style={styles.buttonText}>🧪 Testar Evento</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -413,24 +389,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 5,
-  },
-  debugContainer: {
-    backgroundColor: '#f9f9f9',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  debugTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
-  },
-  debugText: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 2,
   },
 });
