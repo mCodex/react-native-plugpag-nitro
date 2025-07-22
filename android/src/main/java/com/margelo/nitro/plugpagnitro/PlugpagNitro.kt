@@ -105,84 +105,8 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
     }
   }
 
-  override fun doPayment(
-    amount: Double,
-    type: PaymentType,
-    installmentType: InstallmentType,
-    installments: Double,
-    printReceipt: Boolean,
-    userReference: String
-  ): Promise<PlugpagTransactionResult> {
-    return Promise.async {
-      withContext(Dispatchers.IO) {
-        try {
-          initializePlugPag()
-          
-          // Convert enum to PlugPag SDK constants
-          val paymentType = when (type) {
-            PaymentType.CREDIT -> PlugPag.TYPE_CREDITO
-            PaymentType.DEBIT -> PlugPag.TYPE_DEBITO
-            PaymentType.VOUCHER -> PlugPag.TYPE_VOUCHER
-            PaymentType.PIX -> PlugPag.TYPE_PIX
-          }
-          
-          val installmentTypeInt = when (installmentType) {
-            InstallmentType.NO_INSTALLMENT -> PlugPag.INSTALLMENT_TYPE_A_VISTA
-            InstallmentType.SELLER_INSTALLMENT -> PlugPag.INSTALLMENT_TYPE_PARC_VENDEDOR
-            InstallmentType.BUYER_INSTALLMENT -> PlugPag.INSTALLMENT_TYPE_PARC_COMPRADOR
-          }
-          
-          val plugPagPaymentData = PlugPagPaymentData(
-            paymentType,
-            amount.toInt(),
-            installmentTypeInt,
-            installments.toInt(),
-            userReference,
-            printReceipt
-          )
-          
-          val result = plugPag.doPayment(plugPagPaymentData)
-          
-          val errorCode = when (result.result) {
-            PlugPag.RET_OK -> ErrorCode.OK
-            PlugPag.OPERATION_ABORTED -> ErrorCode.OPERATION_ABORTED
-            PlugPag.AUTHENTICATION_FAILED -> ErrorCode.AUTHENTICATION_FAILED
-            PlugPag.COMMUNICATION_ERROR -> ErrorCode.COMMUNICATION_ERROR
-            PlugPag.NO_PRINTER_DEVICE -> ErrorCode.NO_PRINTER_DEVICE
-            PlugPag.NO_TRANSACTION_DATA -> ErrorCode.NO_TRANSACTION_DATA
-            else -> ErrorCode.COMMUNICATION_ERROR
-          }
-          
-          PlugpagTransactionResult(
-            result = errorCode,
-            errorCode = result.errorCode ?: "",
-            message = result.message ?: "",
-            transactionCode = result.transactionCode ?: "",
-            transactionId = result.transactionId ?: "",
-            hostNsu = result.hostNsu ?: "",
-            date = result.date ?: "",
-            time = result.time ?: "",
-            cardBrand = result.cardBrand ?: "",
-            bin = result.bin ?: "",
-            holder = result.holder ?: "",
-            userReference = result.userReference ?: "",
-            terminalSerialNumber = result.terminalSerialNumber ?: "",
-            amount = result.amount ?: "",
-            availableBalance = result.availableBalance ?: "",
-            cardApplication = result.cardApplication ?: "",
-            label = result.label ?: "",
-            holderName = result.holderName ?: "",
-            extendedHolderName = result.extendedHolderName ?: ""
-          )
-        } catch (e: Exception) {
-          Log.e(TAG, "Error processing payment", e)
-          throw Exception("PAYMENT_ERROR: ${e.message ?: "Unknown error"}")
-        }
-      }
-    }
-  }
 
-  override fun doPaymentWithEvents(
+  override fun doPayment(
     amount: Double,
     type: PaymentType,
     installmentType: InstallmentType,
