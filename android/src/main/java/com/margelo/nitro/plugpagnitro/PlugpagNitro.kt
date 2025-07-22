@@ -483,12 +483,10 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
   
   private fun emitPaymentEvent(code: Double, message: String) {
     try {
-      // For now, we'll just log the events
-      // In the future, this could be enhanced to emit actual events to React Native
       Log.d(TAG, "Payment Event - Code: $code, Message: $message")
       
-      // TODO: Implement proper event emission for React Native
-      // This might require additional bridge setup or using a different approach for Nitro modules
+      // Emit event using the dedicated event emitter
+      PlugpagEventEmitter.emitPaymentEvent(code, message)
     } catch (e: Exception) {
       Log.e(TAG, "Error emitting payment event", e)
     }

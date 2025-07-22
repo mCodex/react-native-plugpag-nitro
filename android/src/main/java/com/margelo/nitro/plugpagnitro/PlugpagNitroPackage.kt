@@ -7,7 +7,9 @@ import com.facebook.react.uimanager.ViewManager
 
 class PlugpagNitroPackage : ReactPackage {
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
-        return emptyList()
+        val eventEmitter = PlugpagEventEmitter(reactContext)
+        PlugpagEventEmitter.setInstance(eventEmitter)
+        return listOf(eventEmitter)
     }
 
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {

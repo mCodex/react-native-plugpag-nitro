@@ -1,6 +1,6 @@
 {
   "name": "react-native-plugpag-nitro",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "High-performance React Native library for PagSeguro PlugPag payment terminals with TypeScript-first hooks API, real-time events, and 10x faster performance using Nitro Modules",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
