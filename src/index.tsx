@@ -125,39 +125,6 @@ export async function doPayment(options: {
 }
 
 /**
- * Process a payment transaction with real-time event updates
- * This method emits payment events during the transaction flow to provide
- * real-time feedback about card insertion, password entry, processing status, etc.
- */
-export async function doPaymentWithEvents(options: {
-  amount: number;
-  type: PaymentType;
-  installmentType?: InstallmentType;
-  installments?: number;
-  printReceipt?: boolean;
-  userReference?: string;
-}): Promise<PlugpagTransactionResult> {
-  const paymentOptions = {
-    installmentType: options.installmentType ?? InstallmentType.NO_INSTALLMENT,
-    installments: options.installments ?? 1,
-    printReceipt: options.printReceipt ?? true,
-    userReference: options.userReference ?? `payment-events-${Date.now()}`,
-    ...options,
-  };
-
-  return safeModuleCall('doPaymentWithEvents', () =>
-    PlugpagNitroModule.doPaymentWithEvents(
-      paymentOptions.amount,
-      paymentOptions.type,
-      paymentOptions.installmentType,
-      paymentOptions.installments,
-      paymentOptions.printReceipt,
-      paymentOptions.userReference
-    )
-  );
-}
-
-/**
  * Hook for listening to transaction payment events
  * Provides real-time updates during payment flow including:
  * - Card insertion/removal events
@@ -179,6 +146,7 @@ export function useTransactionPaymentEvent(): PaymentEvent {
         setPaymentEvent(event);
       }
     );
+
     return () => {
       subscription.remove();
     };
@@ -201,61 +169,6 @@ export function useTransactionPaymentEvent(): PaymentEvent {
  * Enhanced payment flow manager
  * Combines payment execution with event monitoring
  */
-export function usePaymentFlow() {
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [currentTransaction, setCurrentTransaction] =
-    useState<PlugpagTransactionResult | null>(null);
-  const paymentEvent = useTransactionPaymentEvent();
-
-  const executePayment = useCallback(
-    async (options: {
-      amount: number;
-      type: PaymentType;
-      installmentType?: InstallmentType;
-      installments?: number;
-      printReceipt?: boolean;
-      userReference?: string;
-    }) => {
-      try {
-        setIsProcessing(true);
-        setCurrentTransaction(null);
-
-        const result = await doPaymentWithEvents(options);
-        setCurrentTransaction(result);
-
-        return result;
-      } catch (error) {
-        console.error('[PaymentFlow] Error:', error);
-        throw error;
-      } finally {
-        setIsProcessing(false);
-      }
-    },
-    []
-  );
-
-  const resetFlow = useCallback(() => {
-    setIsProcessing(false);
-    setCurrentTransaction(null);
-    if ('resetEvent' in paymentEvent) {
-      (paymentEvent as any).resetEvent();
-    }
-  }, [paymentEvent]);
-
-  return {
-    isProcessing,
-    currentTransaction,
-    paymentEvent,
-    executePayment,
-    resetFlow,
-    isTransactionSuccessful: currentTransaction
-      ? isTransactionSuccessful(currentTransaction)
-      : false,
-    transactionError: currentTransaction
-      ? getTransactionError(currentTransaction)
-      : null,
-  };
-}
 
 /**
  * Refund a previous payment transaction
@@ -298,62 +211,31 @@ export async function reprintCustomerReceipt(): Promise<void> {
 }
 
 /**
+ * Generate a PIX QR code string for custom UI
+ * @param amount Payment amount in cents
+ * @param userReference Optional reference for transaction
+ * @returns QR code string from transaction result message
+ */
+export async function generatePixQRCode(
+  amount: number,
+  userReference?: string
+): Promise<string> {
+  const result = await doPayment({
+    amount,
+    type: PaymentType.PIX,
+    userReference,
+  });
+  return result.message ?? '';
+}
+
+/**
  * Simple transaction status checker
  * Helper function to check if a transaction result indicates success
  */
-export function isTransactionSuccessful(
-  result: PlugpagTransactionResult
-): boolean {
-  return result.result === ErrorCode.OK;
-}
-
 /**
  * Simple transaction error checker
  * Helper function to get a human-readable error message
  */
-export function getTransactionError(
-  result: PlugpagTransactionResult
-): string | null {
-  if (isTransactionSuccessful(result)) {
-    return null;
-  }
-
-  return result.message || result.errorCode || 'Unknown transaction error';
-}
-
-// Export presets for common payment scenarios
-export const PaymentPresets = {
-  creditCard: (amount: number, installments: number = 1) => ({
-    amount,
-    type: PaymentType.CREDIT,
-    installmentType:
-      installments > 1
-        ? InstallmentType.BUYER_INSTALLMENT
-        : InstallmentType.NO_INSTALLMENT,
-    installments,
-  }),
-
-  debitCard: (amount: number) => ({
-    amount,
-    type: PaymentType.DEBIT,
-    installmentType: InstallmentType.NO_INSTALLMENT,
-    installments: 1,
-  }),
-
-  pix: (amount: number) => ({
-    amount,
-    type: PaymentType.PIX,
-    installmentType: InstallmentType.NO_INSTALLMENT,
-    installments: 1,
-  }),
-
-  voucher: (amount: number) => ({
-    amount,
-    type: PaymentType.VOUCHER,
-    installmentType: InstallmentType.NO_INSTALLMENT,
-    installments: 1,
-  }),
-} as const;
 
 // Default export
 export default {
@@ -362,26 +244,17 @@ export default {
   getTerminalSerialNumber,
   initializeAndActivatePinPad,
   doPayment,
-  doPaymentWithEvents,
   refundPayment,
   doAbort,
   print,
   reprintCustomerReceipt,
 
-  // Enhanced payment flow
+  // Enhanced payment event listener
   useTransactionPaymentEvent,
-  usePaymentFlow,
 
-  // Helper functions
-  isTransactionSuccessful,
-  getTransactionError,
-
-  // Enums (recommended)
+  // Enums
   PaymentType,
   InstallmentType,
   ErrorCode,
   PaymentEventCode,
-
-  // Presets
-  PaymentPresets,
 };
