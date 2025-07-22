@@ -48,23 +48,6 @@ export interface PaymentOptions {
   userReference?: string;
 }
 
-// Payment type constants (deprecated - use PaymentType enum instead)
-/** @deprecated Use PaymentType enum instead */
-export const PaymentTypes = {
-  CREDIT: PaymentType.CREDIT,
-  DEBIT: PaymentType.DEBIT,
-  VOUCHER: PaymentType.VOUCHER,
-  PIX: PaymentType.PIX,
-} as const;
-
-// Installment type constants (deprecated - use InstallmentType enum instead)
-/** @deprecated Use InstallmentType enum instead */
-export const InstallmentTypes = {
-  NO_INSTALLMENT: InstallmentType.NO_INSTALLMENT,
-  SELLER_INSTALLMENT: InstallmentType.SELLER_INSTALLMENT,
-  BUYER_INSTALLMENT: InstallmentType.BUYER_INSTALLMENT,
-} as const;
-
 // Simple error handling wrapper
 function safeModuleCall<T>(methodName: string, fn: () => T): T {
   try {
@@ -190,15 +173,14 @@ export function useTransactionPaymentEvent(): PaymentEvent {
   });
 
   useEffect(() => {
-    const eventListener = DeviceEventEmitter.addListener(
+    const subscription = DeviceEventEmitter.addListener(
       'paymentEvent',
       (event: PaymentEvent) => {
         setPaymentEvent(event);
       }
     );
-
     return () => {
-      eventListener.remove();
+      subscription.remove();
     };
   }, []);
 
@@ -399,10 +381,6 @@ export default {
   InstallmentType,
   ErrorCode,
   PaymentEventCode,
-
-  // Legacy constants (deprecated)
-  PaymentTypes,
-  InstallmentTypes,
 
   // Presets
   PaymentPresets,

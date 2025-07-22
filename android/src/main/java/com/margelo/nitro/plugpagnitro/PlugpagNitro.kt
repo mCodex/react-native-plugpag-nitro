@@ -17,6 +17,7 @@ import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPagPrinterListener
 import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPagPrintResult
 import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPagEventListener
 import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPagEventData
+import com.margelo.nitro.plugpagnitro.PlugpagEventEmitter
 
 @DoNotStrip
 class PlugpagNitro : HybridPlugpagNitroSpec() {
@@ -237,12 +238,12 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
                     6 -> "Senha: ******"
                     else -> "Senha: ****"
                   }
-                  emitPaymentEvent(1010.0, message)
+                      PlugpagEventEmitter.emitPaymentEvent(1010.0, message)
                 }
                 PlugPagEventData.EVENT_CODE_NO_PASSWORD -> {
                   passwordCount = 0
                   message = "Digite sua senha"
-                  emitPaymentEvent(1011.0, message)
+                  PlugpagEventEmitter.emitPaymentEvent(1011.0, message)
                 }
                 else -> {
                   // Handle other events with generic messages
@@ -251,29 +252,29 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
                     message.contains("card", ignoreCase = true) -> {
                       if (message.contains("inserir", ignoreCase = true) || 
                           message.contains("insert", ignoreCase = true)) {
-                        emitPaymentEvent(1004.0, "Aguardando cartão...")
+                        PlugpagEventEmitter.emitPaymentEvent(1004.0, "Aguardando cartão...")
                       } else if (message.contains("remov", ignoreCase = true) ||
                                  message.contains("retire", ignoreCase = true)) {
-                        emitPaymentEvent(1030.0, "Retire o cartão")
+                        PlugpagEventEmitter.emitPaymentEvent(1030.0, "Retire o cartão")
                       } else {
-                        emitPaymentEvent(1001.0, message.ifEmpty { "Cartão detectado" })
+                        PlugpagEventEmitter.emitPaymentEvent(1001.0, message.ifEmpty { "Cartão detectado" })
                       }
                     }
                     message.contains("processa", ignoreCase = true) ||
                     message.contains("process", ignoreCase = true) -> {
-                      emitPaymentEvent(1020.0, message.ifEmpty { "Processando transação..." })
+                      PlugpagEventEmitter.emitPaymentEvent(1020.0, message.ifEmpty { "Processando transação..." })
                     }
                     message.contains("conecta", ignoreCase = true) ||
                     message.contains("connect", ignoreCase = true) -> {
-                      emitPaymentEvent(1021.0, message.ifEmpty { "Conectando à rede..." })
+                      PlugpagEventEmitter.emitPaymentEvent(1021.0, message.ifEmpty { "Conectando à rede..." })
                     }
                     message.contains("envian", ignoreCase = true) ||
                     message.contains("send", ignoreCase = true) -> {
-                      emitPaymentEvent(1022.0, message.ifEmpty { "Enviando dados..." })
+                      PlugpagEventEmitter.emitPaymentEvent(1022.0, message.ifEmpty { "Enviando dados..." })
                     }
                     message.contains("aguard", ignoreCase = true) ||
                     message.contains("wait", ignoreCase = true) -> {
-                      emitPaymentEvent(1023.0, message.ifEmpty { "Aguardando resposta..." })
+                      PlugpagEventEmitter.emitPaymentEvent(1023.0, message.ifEmpty { "Aguardando resposta..." })
                     }
                     message.contains("aprovad", ignoreCase = true) ||
                     message.contains("aprovad", ignoreCase = true) -> {
@@ -296,7 +297,7 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
           })
           
           // Emit initial event
-          emitPaymentEvent(1004.0, "Aguardando cartão...")
+          PlugpagEventEmitter.emitPaymentEvent(1004.0, "Aguardando cartão...")
           
           val result = plugPag.doPayment(plugPagPaymentData)
           
@@ -323,9 +324,9 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
           
           // Emit final event based on result
           if (errorCode == ErrorCode.OK) {
-            emitPaymentEvent(1031.0, "Transação aprovada")
+            PlugpagEventEmitter.emitPaymentEvent(1031.0, "Transação aprovada")
           } else {
-            emitPaymentEvent(1032.0, "Transação negada")
+            PlugpagEventEmitter.emitPaymentEvent(1032.0, "Transação negada")
           }
           
           PlugpagTransactionResult(
