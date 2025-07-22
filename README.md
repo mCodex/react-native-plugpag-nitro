@@ -27,7 +27,7 @@
 ## 🚀 Quick Start
 
 ```bash
-npm install react-native-plugpag-nitro
+npm install react-native-plugpag-nitro react-native-nitro-modules
 ```
 
 > **Requirements**: React Native ≥ 0.72, Android API ≥ 21
