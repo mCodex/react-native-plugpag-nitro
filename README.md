@@ -1,22 +1,38 @@
-# 🚀 React Native PlugPag Nitro
+# react-native-plugpag-nitro
 
-High-performance PagSeguro PlugPag integration for React Native with TypeScript support and real-time events.
+<div align="center">
+  <h3>🚀 High-performance PagSeguro PlugPag integration for React Native</h3>
+  <p>TypeScript-first payment processing with real-time events and JSI performance</p>
+  
+  [![npm version](https://img.shields.io/npm/v/react-native-plugpag-nitro)](https://www.npmjs.com/package/react-native-plugpag-nitro)
+  [![npm downloads](https://img.shields.io/npm/dm/react-native-plugpag-nitro)](https://www.npmjs.com/package/react-native-plugpag-nitro)
+  [![license](https://img.shields.io/npm/l/react-native-plugpag-nitro)](LICENSE)
+  [![Built with Nitro](https://img.shields.io/badge/Built%20with-Nitro%20Modules-purple)](https://nitro.margelo.com/)
+</div>
 
-[![npm](https://img.shields.io/npm/v/react-native-plugpag-nitro)](https://www.npmjs.com/package/react-native-plugpag-nitro)
-[![license](https://img.shields.io/npm/l/react-native-plugpag-nitro)](LICENSE)
-[![Built with Nitro](https://img.shields.io/badge/Built%20with-Nitro%20Modules-purple)](https://nitro.margelo.com/)
+## ✨ Features
 
-**Features**: TypeScript-first • Real-time Events • High Performance JSI • Credit/Debit/PIX Support
+- 🚀 **High Performance** - Built with Nitro Modules for JSI performance
+- 📘 **TypeScript First** - Complete type safety and IntelliSense support
+- ⚡ **Real-time Events** - Monitor payment status with React hooks
+- 💳 **Multiple Payment Types** - Credit, Debit, Voucher, and PIX support
+- 🔄 **Transaction Management** - Payment, refund, and cancellation support
+- 🖨️ **Receipt Printing** - Integrated thermal receipt printing
+- 🛡️ **Error Handling** - Comprehensive error codes and messages
 
-## Installation
+## 📦 Installation
 
 ```bash
 npm install react-native-plugpag-nitro react-native-nitro-modules
 ```
 
-> Requires React Native ≥ 0.72, Android API ≥ 21
+### Requirements
 
-## Quick Start
+- React Native ≥ 0.72
+- Android API ≥ 21
+- PagSeguro PlugPag terminal
+
+## 🚀 Quick Start
 
 ```typescript
 import {
@@ -58,116 +74,22 @@ function PaymentScreen() {
 }
 ```
 
-## API Reference
+## 📚 API Reference
 
 ### Core Functions
 
-#### `doPayment(options)`
-Process payments with type-safe enums.
-
-```typescript
-const result = await doPayment({
-  amount: 2500,                    // Amount in cents
-  type: PaymentType.CREDIT,        // CREDIT | DEBIT | VOUCHER | PIX
-  installmentType?: InstallmentType.BUYER_INSTALLMENT, // Optional
-  installments?: 3,                // Optional
-  printReceipt?: true             // Optional
-});
-```
-
-#### `useTransactionEvent()`
-Real-time payment event monitoring hook.
-
-```typescript
-const paymentEvent = useTransactionEvent();
-// Returns: { code: number, message: string, customMessage?: string }
-```
-
-### Enums
-
-```typescript
-enum PaymentType {
-  CREDIT = 1,   // Credit card
-  DEBIT = 2,    // Debit card
-  VOUCHER = 3,  // Voucher/meal card
-  PIX = 5       // PIX instant payment
-}
-
-enum ErrorCode {
-  OK = 0,                    // Success
-  OPERATION_ABORTED = -1,    // Operation aborted
-  COMMUNICATION_ERROR = -3,  // Connection error
-  // ... more error codes
-}
-```
-
-### Other Functions
-
-- `initializeAndActivatePinPad(code)` - Initialize terminal
-- `refundPayment({ transactionCode, transactionId })` - Refund transaction
-- `getTerminalSerialNumber()` - Get terminal serial
-- `doAbort()` - Abort current transaction
-- `print(filePath)` - Print receipt from file
-```
-
-## Error Handling
-
-```typescript
-try {
-  const result = await doPayment({ amount: 2500, type: PaymentType.CREDIT });
-  
-  if (result.result !== ErrorCode.OK) {
-    // Handle specific errors
-    switch (result.result) {
-      case ErrorCode.OPERATION_ABORTED:
-        console.log('Payment cancelled by user');
-        break;
-      case ErrorCode.COMMUNICATION_ERROR:
-        console.log('Connection error - check terminal');
-        break;
-      default:
-        console.log('Payment failed:', result.message);
-    }
-    return;
-  }
-  
-  console.log('Payment successful!', result);
-} catch (error) {
-  console.error('Payment error:', error.message);
-}
-```
-
-## Contributing
-
-```bash
-git clone https://github.com/mCodex/react-native-plugpag-nitro.git
-cd react-native-plugpag-nitro
-yarn install
-yarn example android
-```
-
-## License
-
-MIT - see [LICENSE](LICENSE) for details.
-
-## Links
-
-- [📚 Nitro Modules](https://nitro.margelo.com/)
-- [🏢 PagSeguro PlugPag](https://dev.pagseguro.uol.com.br/)
-- [🐛 Issues](https://github.com/mCodex/react-native-plugpag-nitro/issues)
-
-### 💳 Core Functions
-
 #### `initializeAndActivatePinPad(activationCode: string)`
+
 Initializes and activates the PlugPag terminal.
 
 ```typescript
-const result = await initializeAndActivatePinPad('403938');
+const result = await initializeAndActivatePinPad('YOUR_ACTIVATION_CODE');
 // Returns: { result: ErrorCode, errorCode?: string, errorMessage?: string }
 ```
 
 #### `doPayment(options: PaymentOptions)`
-Processes a payment transaction.
+
+Process payments with type-safe enums.
 
 ```typescript
 interface PaymentOptions {
@@ -180,16 +102,16 @@ interface PaymentOptions {
 }
 
 const result = await doPayment({
-  amount: 2500,
-  type: PaymentType.CREDIT,
-  installmentType: InstallmentType.NO_INSTALLMENT,
-  installments: 1,
-  printReceipt: true,
-  userReference: 'payment-001'
+  amount: 2500,                    // Amount in cents
+  type: PaymentType.CREDIT,        // CREDIT | DEBIT | VOUCHER | PIX
+  installmentType: InstallmentType.BUYER_INSTALLMENT, // Optional
+  installments: 3,                 // Optional
+  printReceipt: true              // Optional
 });
 ```
 
 #### `refundPayment(options)`
+
 Refunds a previous payment transaction.
 
 ```typescript
@@ -200,33 +122,15 @@ const result = await refundPayment({
 });
 ```
 
-### 🎣 React Hooks
+### React Hooks
+
 #### `useTransactionEvent()`
-Real-time payment event monitoring hook to track status updates during transactions.
+
+Real-time payment event monitoring hook.
 
 ```typescript
 const paymentEvent = useTransactionEvent();
-
-useEffect(() => {
-  if (paymentEvent.code > 0) {
-    console.log('Payment event:', paymentEvent.eventName);
-  }
-}, [paymentEvent]);
-```
-
-### 🎣 React Hooks
-#### `useTransactionEvent()`
-Real-time payment event monitoring hook to track status updates during transactions.
-
-```typescript
-const paymentEvent = useTransactionEvent();
-
-// paymentEvent contains:
-// {
-//   code: PaymentEventCode,    // Event code
-//   message: string,           // Event message
-//   customMessage?: string     // Custom message if any
-// }
+// Returns: { code: number, message: string, customMessage?: string }
 
 useEffect(() => {
   if (paymentEvent.code > 0) {
@@ -235,7 +139,7 @@ useEffect(() => {
 }, [paymentEvent]);
 ```
 
-### 🔧 Utility Functions
+### Utility Functions
 
 ```typescript
 // Get terminal serial number
@@ -251,11 +155,33 @@ doAbort(): Promise<PlugpagAbortResult>
 print(filePath: string): Promise<void>
 ```
 
----
+### Type Definitions
+
+```typescript
+enum PaymentType {
+  CREDIT = 1,   // Credit card
+  DEBIT = 2,    // Debit card
+  VOUCHER = 3,  // Voucher/meal card
+  PIX = 5       // PIX instant payment
+}
+
+enum ErrorCode {
+  OK = 0,                    // Success
+  OPERATION_ABORTED = -1,    // Operation aborted
+  COMMUNICATION_ERROR = -3,  // Connection error
+  // ... more error codes
+}
+
+enum InstallmentType {
+  NO_INSTALLMENT = 1,        // No installment
+  BUYER_INSTALLMENT = 2,     // Buyer pays installment fee
+  SELLER_INSTALLMENT = 3     // Seller pays installment fee
+}
+```
 
 ## 💡 Usage Examples
 
-### Real-time Event Monitoring with Payment
+### Complete Payment Flow
 
 ```typescript
 import React, { useState, useEffect } from 'react';
@@ -276,7 +202,7 @@ function PaymentScreen() {
   useEffect(() => {
     const initialize = async () => {
       try {
-        const result = await initializeAndActivatePinPad('403938');
+        const result = await initializeAndActivatePinPad('YOUR_ACTIVATION_CODE');
         if (result.result === ErrorCode.OK) {
           setIsInitialized(true);
         }
@@ -330,18 +256,12 @@ function PaymentScreen() {
         onPress={handleCreditPayment}
         disabled={!isInitialized || isProcessing}
       />
-      
-      <Button 
-        title="Generate PIX QR R$ 50.00"
-        onPress={handlePixPayment}
-        disabled={!isInitialized}
-      />
     </View>
   );
 }
 ```
 
-### Error Handling
+## ⚠️ Error Handling
 
 ```typescript
 import { ErrorCode, doPayment, PaymentType } from 'react-native-plugpag-nitro';
@@ -350,51 +270,54 @@ try {
   const result = await doPayment({ amount: 2500, type: PaymentType.CREDIT });
   
   if (result.result !== ErrorCode.OK) {
+    // Handle specific errors
     switch (result.result) {
       case ErrorCode.OPERATION_ABORTED:
-        Alert.alert('Cancelled', 'Payment was cancelled by user');
+        console.log('Payment cancelled by user');
         break;
       case ErrorCode.COMMUNICATION_ERROR:
-        Alert.alert('Connection Error', 'Check terminal connection');
+        console.log('Connection error - check terminal');
         break;
       default:
-        Alert.alert('Payment Failed', result.message || 'Unknown error');
+        console.log('Payment failed:', result.message);
     }
     return;
   }
   
-  Alert.alert('Success', 'Payment approved!');
+  console.log('Payment successful!', result);
 } catch (error) {
-  console.error('Payment error:', error);
-  Alert.alert('Error', error.message || 'Payment failed');
+  console.error('Payment error:', error.message);
 }
 ```
 
----
-
-## 🤝 Contributing
+## 🛠️ Development
 
 ```bash
+# Clone the repository
 git clone https://github.com/mCodex/react-native-plugpag-nitro.git
 cd react-native-plugpag-nitro
+
+# Install dependencies
 yarn install
-yarn prepare
+
+# Setup the example project
 yarn example android
 ```
 
----
+## 🤝 Contributing
 
-## 📄 License
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
-MIT License - see [LICENSE](LICENSE) file for details.
+## � License
 
----
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🔗 Links
 
-- [📚 Nitro Modules](https://nitro.margelo.com/)
-- [🏢 PagSeguro PlugPag](https://dev.pagseguro.uol.com.br/)
-- [🐛 Issues](https://github.com/mCodex/react-native-plugpag-nitro/issues)
+- [📚 Nitro Modules Documentation](https://nitro.margelo.com/)
+- [🏢 PagSeguro PlugPag Official Docs](https://dev.pagseguro.uol.com.br/)
+- [🐛 Report Issues](https://github.com/mCodex/react-native-plugpag-nitro/issues)
+- [� Discussions](https://github.com/mCodex/react-native-plugpag-nitro/discussions)
 
 ---
 
