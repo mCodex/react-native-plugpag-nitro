@@ -22,7 +22,6 @@ npm install react-native-plugpag-nitro react-native-nitro-modules
 import {
   initializeAndActivatePinPad,
   doPayment,
-  generatePixQRCode,
   useTransactionEvent,
   PaymentType,
   ErrorCode
@@ -74,13 +73,6 @@ const result = await doPayment({
   installments?: 3,                // Optional
   printReceipt?: true             // Optional
 });
-```
-
-#### `generatePixQRCode(amount, userReference?)`
-Generate PIX QR code string.
-
-```typescript
-const qrString = await generatePixQRCode(2500); // R$ 25.00
 ```
 
 #### `useTransactionEvent()`
@@ -197,14 +189,6 @@ const result = await doPayment({
 });
 ```
 
-#### `generatePixQRCode(amount: number, userReference?: string)`
-Generates a PIX QR code string for payment.
-
-```typescript
-const qrString = await generatePixQRCode(2500); // R$ 25.00
-// Returns the PIX QR code string to display/use
-```
-
 #### `refundPayment(options)`
 Refunds a previous payment transaction.
 
@@ -280,8 +264,7 @@ import {
   ErrorCode,
   doPayment,
   useTransactionEvent,
-  initializeAndActivatePinPad,
-  generatePixQRCode
+  initializeAndActivatePinPad
 } from 'react-native-plugpag-nitro';
 
 function PaymentScreen() {
@@ -327,15 +310,6 @@ function PaymentScreen() {
       Alert.alert('Error', error.message);
     } finally {
       setIsProcessing(false);
-    }
-  };
-
-  const handlePixPayment = async () => {
-    try {
-      const qrString = await generatePixQRCode(5000); // R$ 50.00
-      Alert.alert('PIX QR Code', qrString);
-    } catch (error) {
-      Alert.alert('PIX Error', error.message);
     }
   };
 

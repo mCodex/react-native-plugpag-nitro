@@ -213,24 +213,6 @@ export async function reprintCustomerReceipt(): Promise<void> {
 }
 
 /**
- * Generate a PIX QR code string for custom UI
- * @param amount Payment amount in cents
- * @param userReference Optional reference for transaction
- * @returns QR code string from transaction result message
- */
-export async function generatePixQRCode(
-  amount: number,
-  userReference?: string
-): Promise<string> {
-  const result = await doPayment({
-    amount,
-    type: PaymentType.PIX,
-    userReference,
-  });
-  return result.message ?? '';
-}
-
-/**
  * Simple transaction status checker
  * Helper function to check if a transaction result indicates success
  */

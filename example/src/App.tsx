@@ -13,7 +13,6 @@ import {
   initializeAndActivatePinPad,
   doPayment,
   refundPayment,
-  generatePixQRCode,
   useTransactionEvent,
   getTerminalSerialNumber,
   PaymentType,
@@ -124,6 +123,38 @@ export default function App() {
     setIsProcessing(false);
   };
 
+  // Credit payment
+  const handlePIXPayment = async () => {
+    if (!isInitialized) {
+      Alert.alert('⚠️ Aviso', 'Por favor, inicialize o terminal primeiro');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const result = await doPayment({
+        amount: 1500, // R$ 15.00
+        type: PaymentType.PIX,
+      });
+      setLastPayment(result);
+
+      if (result.result === ErrorCode.OK) {
+        Alert.alert(
+          '✅ Pagamento Aprovado',
+          `Transação realizada com sucesso!\nCódigo: ${result.transactionCode}\nValor: R$ 25,00`
+        );
+      } else {
+        Alert.alert(
+          '❌ Pagamento Negado',
+          result.message || 'Transação falhou'
+        );
+      }
+    } catch (e: any) {
+      Alert.alert('❌ Erro', e.message);
+    }
+    setIsProcessing(false);
+  };
+
   // Installment payment
   const handleInstallmentPayment = async () => {
     if (!isInitialized) {
@@ -156,16 +187,6 @@ export default function App() {
       Alert.alert('❌ Erro', e.message);
     }
     setIsProcessing(false);
-  };
-
-  // Generate PIX QR code
-  const handleGeneratePix = async () => {
-    try {
-      const qrString = await generatePixQRCode(5000); // R$ 50.00
-      Alert.alert('Código QR PIX', qrString);
-    } catch (e: any) {
-      Alert.alert('❌ Erro PIX', e.message);
-    }
   };
 
   // Refund last payment
@@ -265,16 +286,20 @@ export default function App() {
 
       <TouchableOpacity
         style={styles.button}
+        onPress={handlePIXPayment}
+        disabled={isProcessing || !isInitialized}
+      >
+        <Text style={styles.buttonText}>PIX - R$ 15,00</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.button}
         onPress={handleInstallmentPayment}
         disabled={isProcessing || !isInitialized}
       >
         <Text style={styles.buttonText}>
           Pagamento Parcelado - R$ 100,00 (3x)
         </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.button} onPress={handleGeneratePix}>
-        <Text style={styles.buttonText}>Gerar QR PIX - R$ 50,00</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
