@@ -17,12 +17,12 @@ import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPagPrinterListener
 import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPagPrintResult
 import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPagEventListener
 import br.com.uol.pagseguro.plugpagservice.wrapper.PlugPagEventData
-import com.margelo.nitro.plugpagnitro.PlugpagEventEmitter
 
 @DoNotStrip
 class PlugpagNitro : HybridPlugpagNitroSpec() {
   
   private lateinit var plugPag: PlugPag
+  private val eventContext = mutableMapOf<String, Any>()
 
   companion object {
     private const val TAG = "PlugpagNitro"
@@ -57,50 +57,37 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
   }
 
   override fun getTerminalSerialNumber(): String {
-    return try {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        Build.getSerial()
-      } else {
-        @Suppress("DEPRECATION")
-        Build.SERIAL ?: "UNKNOWN"
+    return OperationHandler.executeSimpleOperation("getTerminalSerialNumber") {
+      when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.O -> {
+          try {
+            Build.getSerial()
+          } catch (e: SecurityException) {
+            Log.w(TAG, "Permission required to access serial number", e)
+            "PERMISSION_REQUIRED"
+          }
+        }
+        else -> {
+          @Suppress("DEPRECATION")
+          Build.SERIAL ?: "UNKNOWN"
+        }
       }
-    } catch (e: SecurityException) {
-      Log.w(TAG, "Permission required to access serial number", e)
-      "PERMISSION_REQUIRED"
-    } catch (e: Exception) {
-      Log.e(TAG, "Error getting terminal serial number", e)
-      "UNKNOWN"
     }
   }
 
   override fun initializeAndActivatePinPad(activationCode: String): Promise<PlugpagInitializationResult> {
     return Promise.async {
-      withContext(Dispatchers.IO) {
-        try {
-          initializePlugPag()
-          
-          val activationData = PlugPagActivationData(activationCode)
-          val result = plugPag.initializeAndActivatePinpad(activationData)
-          
-          val errorCode = when (result.result) {
-            PlugPag.RET_OK -> ErrorCode.OK
-            PlugPag.OPERATION_ABORTED -> ErrorCode.OPERATION_ABORTED
-            PlugPag.AUTHENTICATION_FAILED -> ErrorCode.AUTHENTICATION_FAILED
-            PlugPag.COMMUNICATION_ERROR -> ErrorCode.COMMUNICATION_ERROR
-            PlugPag.NO_PRINTER_DEVICE -> ErrorCode.NO_PRINTER_DEVICE
-            PlugPag.NO_TRANSACTION_DATA -> ErrorCode.NO_TRANSACTION_DATA
-            else -> ErrorCode.COMMUNICATION_ERROR
-          }
-          
-          PlugpagInitializationResult(
-            result = errorCode,
-            errorCode = result.errorCode ?: "",
-            errorMessage = result.errorMessage ?: ""
-          )
-        } catch (e: Exception) {
-          Log.e(TAG, "Error initializing pin pad", e)
-          throw Exception("INITIALIZATION_ERROR: ${e.message ?: "Unknown error"}")
-        }
+      OperationHandler.executeOperation("initializeAndActivatePinPad") {
+        initializePlugPag()
+        
+        val activationData = PlugPagActivationData(activationCode)
+        val result = plugPag.initializeAndActivatePinpad(activationData)
+        
+        PlugpagInitializationResult(
+          result = ErrorCodeMapper.mapToErrorCode(result.result),
+          errorCode = result.errorCode ?: "",
+          errorMessage = result.errorMessage ?: ""
+        )
       }
     }
   }
@@ -115,169 +102,29 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
     userReference: String
   ): Promise<PlugpagTransactionResult> {
     return Promise.async {
-      withContext(Dispatchers.IO) {
-        try {
-          initializePlugPag()
-          
-          // Convert enum to PlugPag SDK constants
-          val paymentType = when (type) {
-            PaymentType.CREDIT -> PlugPag.TYPE_CREDITO
-            PaymentType.DEBIT -> PlugPag.TYPE_DEBITO
-            PaymentType.VOUCHER -> PlugPag.TYPE_VOUCHER
-            PaymentType.PIX -> PlugPag.TYPE_PIX
-          }
-          
-          val installmentTypeInt = when (installmentType) {
-            InstallmentType.NO_INSTALLMENT -> PlugPag.INSTALLMENT_TYPE_A_VISTA
-            InstallmentType.SELLER_INSTALLMENT -> PlugPag.INSTALLMENT_TYPE_PARC_VENDEDOR
-            InstallmentType.BUYER_INSTALLMENT -> PlugPag.INSTALLMENT_TYPE_PARC_COMPRADOR
-          }
-          
-          val plugPagPaymentData = PlugPagPaymentData(
-            paymentType,
-            amount.toInt(),
-            installmentTypeInt,
-            installments.toInt(),
-            userReference,
-            printReceipt
-          )
-          
-          // Set up event listener for real-time payment events
-          var passwordCount = 0
-          plugPag.setEventListener(object : PlugPagEventListener {
-            override fun onEvent(plugPagEventData: PlugPagEventData) {
-              val eventCode = plugPagEventData.eventCode
-              var message = plugPagEventData.customMessage ?: ""
-              
-              // Handle specific events and enhance messages
-              when (eventCode) {
-                PlugPagEventData.EVENT_CODE_DIGIT_PASSWORD -> {
-                  passwordCount++
-                  message = when (passwordCount) {
-                    1 -> "Senha: *"
-                    2 -> "Senha: **"
-                    3 -> "Senha: ***"
-                    4 -> "Senha: ****"
-                    5 -> "Senha: *****"
-                    6 -> "Senha: ******"
-                    else -> "Senha: ****"
-                  }
-                      PlugpagEventEmitter.emitPaymentEvent(1010.0, message)
-                }
-                PlugPagEventData.EVENT_CODE_NO_PASSWORD -> {
-                  passwordCount = 0
-                  message = "Digite sua senha"
-                  PlugpagEventEmitter.emitPaymentEvent(1011.0, message)
-                }
-                else -> {
-                  // Handle other events with generic messages
-                  when {
-                    message.contains("cartão", ignoreCase = true) || 
-                    message.contains("card", ignoreCase = true) -> {
-                      if (message.contains("inserir", ignoreCase = true) || 
-                          message.contains("insert", ignoreCase = true)) {
-                        PlugpagEventEmitter.emitPaymentEvent(1004.0, "Aguardando cartão...")
-                      } else if (message.contains("remov", ignoreCase = true) ||
-                                 message.contains("retire", ignoreCase = true)) {
-                        PlugpagEventEmitter.emitPaymentEvent(1030.0, "Retire o cartão")
-                      } else {
-                        PlugpagEventEmitter.emitPaymentEvent(1001.0, message.ifEmpty { "Cartão detectado" })
-                      }
-                    }
-                    message.contains("processa", ignoreCase = true) ||
-                    message.contains("process", ignoreCase = true) -> {
-                      PlugpagEventEmitter.emitPaymentEvent(1020.0, message.ifEmpty { "Processando transação..." })
-                    }
-                    message.contains("conecta", ignoreCase = true) ||
-                    message.contains("connect", ignoreCase = true) -> {
-                      PlugpagEventEmitter.emitPaymentEvent(1021.0, message.ifEmpty { "Conectando à rede..." })
-                    }
-                    message.contains("envian", ignoreCase = true) ||
-                    message.contains("send", ignoreCase = true) -> {
-                      PlugpagEventEmitter.emitPaymentEvent(1022.0, message.ifEmpty { "Enviando dados..." })
-                    }
-                    message.contains("aguard", ignoreCase = true) ||
-                    message.contains("wait", ignoreCase = true) -> {
-                      PlugpagEventEmitter.emitPaymentEvent(1023.0, message.ifEmpty { "Aguardando resposta..." })
-                    }
-                    message.contains("aprovad", ignoreCase = true) ||
-                    message.contains("aprovad", ignoreCase = true) -> {
-                      emitPaymentEvent(1031.0, "Transação aprovada")
-                    }
-                    message.contains("negad", ignoreCase = true) ||
-                    message.contains("denied", ignoreCase = true) ||
-                    message.contains("recusad", ignoreCase = true) -> {
-                      emitPaymentEvent(1032.0, "Transação negada")
-                    }
-                    else -> {
-                      if (message.isNotEmpty()) {
-                        emitPaymentEvent(1020.0, message)
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          })
-          
-          // Emit initial event
-          PlugpagEventEmitter.emitPaymentEvent(1004.0, "Aguardando cartão...")
-          
-          val result = plugPag.doPayment(plugPagPaymentData)
-          
-          // Clear event listener after payment with a no-op listener
-          try {
-            plugPag.setEventListener(object : PlugPagEventListener {
-              override fun onEvent(plugPagEventData: PlugPagEventData) {
-                // No-op listener to clear events
-              }
-            })
-          } catch (e: Exception) {
-            Log.w(TAG, "Could not clear event listener", e)
-          }
-          
-          val errorCode = when (result.result) {
-            PlugPag.RET_OK -> ErrorCode.OK
-            PlugPag.OPERATION_ABORTED -> ErrorCode.OPERATION_ABORTED
-            PlugPag.AUTHENTICATION_FAILED -> ErrorCode.AUTHENTICATION_FAILED
-            PlugPag.COMMUNICATION_ERROR -> ErrorCode.COMMUNICATION_ERROR
-            PlugPag.NO_PRINTER_DEVICE -> ErrorCode.NO_PRINTER_DEVICE
-            PlugPag.NO_TRANSACTION_DATA -> ErrorCode.NO_TRANSACTION_DATA
-            else -> ErrorCode.COMMUNICATION_ERROR
-          }
-          
-          // Emit final event based on result
-          if (errorCode == ErrorCode.OK) {
-            PlugpagEventEmitter.emitPaymentEvent(1031.0, "Transação aprovada")
-          } else {
-            PlugpagEventEmitter.emitPaymentEvent(1032.0, "Transação negada")
-          }
-          
-          PlugpagTransactionResult(
-            result = errorCode,
-            errorCode = result.errorCode ?: "",
-            message = result.message ?: "",
-            transactionCode = result.transactionCode ?: "",
-            transactionId = result.transactionId ?: "",
-            hostNsu = result.hostNsu ?: "",
-            date = result.date ?: "",
-            time = result.time ?: "",
-            cardBrand = result.cardBrand ?: "",
-            bin = result.bin ?: "",
-            holder = result.holder ?: "",
-            userReference = result.userReference ?: "",
-            terminalSerialNumber = result.terminalSerialNumber ?: "",
-            amount = result.amount ?: "",
-            availableBalance = result.availableBalance ?: "",
-            cardApplication = result.cardApplication ?: "",
-            label = result.label ?: "",
-            holderName = result.holderName ?: "",
-            extendedHolderName = result.extendedHolderName ?: ""
-          )
-        } catch (e: Exception) {
-          Log.e(TAG, "Error processing payment with events", e)
-          throw Exception("PAYMENT_WITH_EVENTS_ERROR: ${e.message ?: "Unknown error"}")
-        }
+      OperationHandler.executeOperation("doPayment") {
+        initializePlugPag()
+        
+        val plugPagPaymentData = PlugPagPaymentData(
+          mapPaymentType(type),
+          amount.toInt(),
+          mapInstallmentType(installmentType),
+          installments.toInt(),
+          userReference,
+          printReceipt
+        )
+        
+        setupPaymentEventListener()
+        
+        // Emit initial event
+        PlugpagEventEmitter.emitPaymentEvent(1004.0, "Aguardando cartão...")
+        
+        val result = plugPag.doPayment(plugPagPaymentData)
+        
+        clearEventListener()
+        emitFinalEvent(result.result ?: -1)
+        
+        TransactionResultBuilder.buildFrom(result)
       }
     }
   }
@@ -288,117 +135,59 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
     printReceipt: Boolean
   ): Promise<PlugpagTransactionResult> {
     return Promise.async {
-      withContext(Dispatchers.IO) {
-        try {
-          initializePlugPag()
-          
-          val plugPagVoidData = PlugPagVoidData(
-            transactionCode,
-            transactionId,
-            printReceipt
-          )
-          
-          val result = plugPag.voidPayment(plugPagVoidData)
-          
-          val errorCode = when (result.result) {
-            PlugPag.RET_OK -> ErrorCode.OK
-            PlugPag.OPERATION_ABORTED -> ErrorCode.OPERATION_ABORTED
-            PlugPag.AUTHENTICATION_FAILED -> ErrorCode.AUTHENTICATION_FAILED
-            PlugPag.COMMUNICATION_ERROR -> ErrorCode.COMMUNICATION_ERROR
-            PlugPag.NO_PRINTER_DEVICE -> ErrorCode.NO_PRINTER_DEVICE
-            PlugPag.NO_TRANSACTION_DATA -> ErrorCode.NO_TRANSACTION_DATA
-            else -> ErrorCode.COMMUNICATION_ERROR
-          }
-          
-          PlugpagTransactionResult(
-            result = errorCode,
-            errorCode = result.errorCode ?: "",
-            message = result.message ?: "",
-            transactionCode = result.transactionCode ?: "",
-            transactionId = result.transactionId ?: "",
-            hostNsu = result.hostNsu ?: "",
-            date = result.date ?: "",
-            time = result.time ?: "",
-            cardBrand = result.cardBrand ?: "",
-            bin = result.bin ?: "",
-            holder = result.holder ?: "",
-            userReference = result.userReference ?: "",
-            terminalSerialNumber = result.terminalSerialNumber ?: "",
-            amount = result.amount ?: "",
-            availableBalance = result.availableBalance ?: "",
-            cardApplication = result.cardApplication ?: "",
-            label = result.label ?: "",
-            holderName = result.holderName ?: "",
-            extendedHolderName = result.extendedHolderName ?: ""
-          )
-        } catch (e: Exception) {
-          Log.e(TAG, "Error processing refund payment", e)
-          throw Exception("REFUND_PAYMENT_ERROR: ${e.message ?: "Unknown error"}")
-        }
+      OperationHandler.executeOperation("refundPayment") {
+        initializePlugPag()
+        
+        val plugPagVoidData = PlugPagVoidData(
+          transactionCode,
+          transactionId,
+          printReceipt
+        )
+        
+        val result = plugPag.voidPayment(plugPagVoidData)
+        TransactionResultBuilder.buildFrom(result)
       }
     }
   }
 
   override fun doAbort(): Promise<PlugpagAbortResult> {
     return Promise.async {
-      withContext(Dispatchers.IO) {
-        try {
-          initializePlugPag()
-          val result = plugPag.abort()
-          
-          PlugpagAbortResult(
-            result = result.result == PlugPag.RET_OK
-          )
-        } catch (e: Exception) {
-          Log.e(TAG, "Error aborting operation", e)
-          throw Exception("ABORT_ERROR: ${e.message ?: "Unknown error"}")
-        }
+      OperationHandler.executeOperation("doAbort") {
+        initializePlugPag()
+        val result = plugPag.abort()
+        
+        PlugpagAbortResult(
+          result = result.result == PlugPag.RET_OK
+        )
       }
     }
   }
 
   override fun print(filePath: String): Promise<Unit> {
     return Promise.async {
-      withContext(Dispatchers.IO) {
-        try {
-          initializePlugPag()
-          val printerData = PlugPagPrinterData(filePath, 4, 0)
-          
-          plugPag.setPrinterListener(object : PlugPagPrinterListener {
-            override fun onError(result: PlugPagPrintResult) {
-              Log.e(TAG, "Print error: ${result.message}")
-            }
-            
-            override fun onSuccess(result: PlugPagPrintResult) {
-              Log.d(TAG, "Print success")
-            }
-          })
-          
-          plugPag.printFromFile(printerData)
-          Unit
-        } catch (e: Exception) {
-          Log.e(TAG, "Error printing", e)
-          throw Exception("PRINT_ERROR: ${e.message ?: "Unknown error"}")
-        }
+      OperationHandler.executeOperation("print") {
+        initializePlugPag()
+        val printerData = PlugPagPrinterData(filePath, 4, 0)
+        
+        plugPag.setPrinterListener(createPrinterListener())
+        plugPag.printFromFile(printerData)
+        Unit
       }
     }
   }
 
   override fun reprintCustomerReceipt(): Promise<Unit> {
     return Promise.async {
-      withContext(Dispatchers.IO) {
-        try {
-          initializePlugPag()
-          plugPag.reprintCustomerReceipt()
-          Unit
-        } catch (e: Exception) {
-          Log.e(TAG, "Error reprinting customer receipt", e)
-          throw Exception("REPRINT_ERROR: ${e.message ?: "Unknown error"}")
-        }
+      OperationHandler.executeOperation("reprintCustomerReceipt") {
+        initializePlugPag()
+        plugPag.reprintCustomerReceipt()
+        Unit
       }
     }
   }
 
+  // Private helper methods - extracted for reusability
+  
   private fun initializePlugPag() {
     if (!::plugPag.isInitialized) {
       val context = NitroModules.applicationContext as Context
@@ -406,14 +195,70 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
     }
   }
   
-  private fun emitPaymentEvent(code: Double, message: String) {
+  private fun mapPaymentType(type: PaymentType): Int {
+    return when (type) {
+      PaymentType.CREDIT -> PlugPag.TYPE_CREDITO
+      PaymentType.DEBIT -> PlugPag.TYPE_DEBITO
+      PaymentType.VOUCHER -> PlugPag.TYPE_VOUCHER
+      PaymentType.PIX -> PlugPag.TYPE_PIX
+    }
+  }
+  
+  private fun mapInstallmentType(installmentType: InstallmentType): Int {
+    return when (installmentType) {
+      InstallmentType.NO_INSTALLMENT -> PlugPag.INSTALLMENT_TYPE_A_VISTA
+      InstallmentType.SELLER_INSTALLMENT -> PlugPag.INSTALLMENT_TYPE_PARC_VENDEDOR
+      InstallmentType.BUYER_INSTALLMENT -> PlugPag.INSTALLMENT_TYPE_PARC_COMPRADOR
+    }
+  }
+  
+  private fun setupPaymentEventListener() {
+    eventContext["passwordCount"] = 0
+    
+    plugPag.setEventListener(object : PlugPagEventListener {
+      override fun onEvent(plugPagEventData: PlugPagEventData) {
+        // Handle password count tracking
+        if (plugPagEventData.eventCode == PlugPagEventData.EVENT_CODE_DIGIT_PASSWORD) {
+          val currentCount = eventContext["passwordCount"] as Int
+          eventContext["passwordCount"] = currentCount + 1
+        } else if (plugPagEventData.eventCode == PlugPagEventData.EVENT_CODE_NO_PASSWORD) {
+          eventContext["passwordCount"] = 0
+        }
+        
+        PaymentEventHandler.handleEvent(plugPagEventData, eventContext)
+      }
+    })
+  }
+  
+  private fun clearEventListener() {
     try {
-      Log.d(TAG, "Payment Event - Code: $code, Message: $message")
-      
-      // Emit event using the dedicated event emitter
-      PlugpagEventEmitter.emitPaymentEvent(code, message)
+      plugPag.setEventListener(object : PlugPagEventListener {
+        override fun onEvent(plugPagEventData: PlugPagEventData) {
+          // No-op listener to clear events
+        }
+      })
     } catch (e: Exception) {
-      Log.e(TAG, "Error emitting payment event", e)
+      Log.w(TAG, "Could not clear event listener", e)
+    }
+  }
+  
+  private fun emitFinalEvent(result: Int) {
+    val (code, message) = when (result) {
+      PlugPag.RET_OK -> 1031.0 to "Transação aprovada"
+      else -> 1032.0 to "Transação negada"
+    }
+    PlugpagEventEmitter.emitPaymentEvent(code, message)
+  }
+  
+  private fun createPrinterListener(): PlugPagPrinterListener {
+    return object : PlugPagPrinterListener {
+      override fun onError(result: PlugPagPrintResult) {
+        Log.e(TAG, "Print error: ${result.message}")
+      }
+      
+      override fun onSuccess(result: PlugPagPrintResult) {
+        Log.d(TAG, "Print success")
+      }
     }
   }
 }
