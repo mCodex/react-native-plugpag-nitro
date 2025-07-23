@@ -85,7 +85,7 @@
     "eslint": "^9.31.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.3",
-    "jest": "^30.0.4",
+    "jest": "^30.0.5",
     "nitro-codegen": "^0.26.4",
     "prettier": "^3.6.2",
     "react": "19.1.0",
@@ -94,7 +94,7 @@
     "react-native-nitro-modules": "^0.26.4",
     "release-it": "^19.0.4",
     "turbo": "^2.5.5",
-    "typescript": "^5.5.4"
+    "typescript": "^5.8.3"
   },
   "peerDependencies": {
     "react": "*",

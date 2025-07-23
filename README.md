@@ -179,6 +179,155 @@ enum InstallmentType {
 }
 ```
 
+## 🎨 UI Customization & Theming
+
+Customize the appearance of PagBank SDK modal dialogs to match your app's design. The library provides complete control over colors, themes, and UI elements displayed during payment transactions.
+
+<div align="center">
+  <img src="https://github.com/mCodex/react-native-plugpag-nitro/assets/modal-example.png" alt="Customizable Payment Modal" width="400"/>
+  <p><em>Payment modal with custom dark theme matching your app's design</em></p>
+</div>
+
+### ⚡ Quick Theme Setup
+
+```typescript
+import { setStyleTheme, PlugPagThemes } from 'react-native-plugpag-nitro';
+
+// Apply predefined dark theme (matches the modal above)
+await setStyleTheme(PlugPagThemes.DARK_THEME);
+
+// Or create a custom theme
+await setStyleTheme({
+  headBackgroundColor: '#1A1A1D',     // Header background
+  headTextColor: '#FFFFFF',           // Header text
+  positiveButtonBackground: '#22C55E', // "Confirm" button color  
+  negativeButtonBackground: '#EF4444', // "Cancel" button color
+  contentTextColor: '#FFFFFF',        // Body text color
+  lineColor: '#71717A'               // Borders and lines
+});
+```
+
+### 🎯 Available Themes
+
+| Theme | Description | Use Case |
+|-------|-------------|----------|
+| `DARK_THEME` | Dark theme matching modern apps | Apps with dark UI |
+| `LIGHT_THEME` | Clean light theme | Apps with light UI |  
+| `PAGBANK_THEME` | Official PagBank colors | Brand consistency |
+| `HIGH_CONTRAST_THEME` | Accessibility-focused | Better accessibility |
+
+### 🛠️ Custom Theme Creation
+
+```typescript
+// Brand-based theme
+const customTheme = PlugPagThemes.createCustomTheme(
+  '#00D4FF',  // Your primary brand color
+  '#1A1A1D',  // Background color
+  '#FFFFFF',  // Text color
+  true        // Use dark theme as base
+);
+
+// Monochromatic theme
+const monoTheme = PlugPagThemes.createMonochromaticTheme(
+  '#7C3AED',  // Base purple color
+  true        // Dark variant
+);
+
+await setStyleTheme(customTheme);
+```
+
+### 🎨 Complete Style Properties
+
+<details>
+<summary><strong>📋 All available style properties</strong></summary>
+
+```typescript
+interface PlugpagStyleData {
+  // Header styling
+  headTextColor?: string;              // Header text color
+  headBackgroundColor?: string;        // Header background color
+  
+  // Content styling  
+  contentTextColor?: string;           // General content text
+  contentTextValue1Color?: string;     // Primary monetary values
+  contentTextValue2Color?: string;     // Secondary monetary values
+  
+  // Button styling
+  positiveButtonTextColor?: string;    // Confirm button text
+  positiveButtonBackground?: string;   // Confirm button background
+  negativeButtonTextColor?: string;    // Cancel button text  
+  negativeButtonBackground?: string;   // Cancel button background
+  genericButtonBackground?: string;    // Generic button background
+  genericButtonTextColor?: string;     // Generic button text
+  
+  // Input field styling
+  genericSmsEditTextBackground?: string; // SMS input background
+  genericSmsEditTextTextColor?: string;  // SMS input text
+  
+  // Interface elements
+  lineColor?: string;                  // Lines, borders, dividers
+}
+```
+
+</details>
+
+### 🔧 Theme Utilities
+
+```typescript
+import { ThemeUtils } from 'react-native-plugpag-nitro';
+
+// Validate theme colors
+const errors = ThemeUtils.validateTheme(myTheme);
+if (errors.length === 0) {
+  await setStyleTheme(myTheme);
+}
+
+// Merge themes
+const customizedTheme = ThemeUtils.mergeThemes(
+  PlugPagThemes.DARK_THEME,
+  { positiveButtonBackground: '#FF6B6B' }
+);
+
+// Preview theme colors (for debugging)
+const preview = ThemeUtils.createThemePreview(myTheme);
+console.log(preview); // { headBackgroundColor: '#1A1A1D', ... }
+```
+
+### 💡 Best Practices
+
+- **Apply early**: Set themes during app initialization, before payment operations
+- **Match your design**: Use colors that complement your existing UI  
+- **Accessibility**: Ensure sufficient contrast between text and backgrounds
+- **Validation**: Always validate themes before applying them
+- **Error handling**: Wrap theme operations in try-catch blocks
+
+### 🏗️ Integration Example
+
+```typescript
+import React, { useEffect } from 'react';
+import { setStyleTheme, PlugPagThemes } from 'react-native-plugpag-nitro';
+
+export default function App() {
+  useEffect(() => {
+    // Apply theme matching your app's design
+    const initializeTheme = async () => {
+      try {
+        await setStyleTheme(PlugPagThemes.DARK_THEME);
+        console.log('Theme applied successfully');
+      } catch (error) {
+        console.error('Failed to apply theme:', error);
+      }
+    };
+    
+    initializeTheme();
+  }, []);
+
+  // ... rest of your app
+}
+```
+
+> 📖 **Complete styling guide**: See [STYLING_GUIDE.md](STYLING_GUIDE.md) for detailed documentation and examples.
+
 ## 💡 Usage Examples
 
 ### Complete Payment Flow

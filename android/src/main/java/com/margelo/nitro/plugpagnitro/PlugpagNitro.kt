@@ -92,7 +92,6 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
     }
   }
 
-
   override fun doPayment(
     amount: Double,
     type: PaymentType,
@@ -150,28 +149,47 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
     }
   }
 
-  override fun doAbort(): Promise<PlugpagAbortResult> {
+  override fun doAbort(): Promise<ErrorCode> {
     return Promise.async {
       OperationHandler.executeOperation("doAbort") {
-        initializePlugPag()
         val result = plugPag.abort()
+        ErrorCodeMapper.mapToErrorCode(result.result ?: -1)
+      }
+    }
+  }
+  
+  override fun setStyleTheme(styleData: PlugpagStyleData): Promise<Boolean> {
+    return Promise.async {
+      OperationHandler.executeOperation("setStyleTheme") {
+        initializePlugPag()
         
-        PlugpagAbortResult(
-          result = result.result == PlugPag.RET_OK
-        )
+        try {
+          val plugPagStyleData = StyleConfigurationManager.createStyleDataFromNitro(styleData)
+          val result = plugPag.setStyleData(plugPagStyleData)
+          result
+        } catch (e: Exception) {
+          Log.e(TAG, "Error in setStyleTheme", e)
+          when (e) {
+            is NoSuchMethodError -> {
+              Log.w(TAG, "setStyleData method is not available in this PlugPag SDK version")
+              true // Return true to avoid breaking the app
+            }
+            else -> throw e
+          }
+        }
       }
     }
   }
 
-  override fun print(filePath: String): Promise<Unit> {
+  override fun print(filePath: String, textSize: Double): Promise<ErrorCode> {
     return Promise.async {
       OperationHandler.executeOperation("print") {
         initializePlugPag()
         val printerData = PlugPagPrinterData(filePath, 4, 0)
         
         plugPag.setPrinterListener(createPrinterListener())
-        plugPag.printFromFile(printerData)
-        Unit
+        val result = plugPag.printFromFile(printerData)
+        ErrorCodeMapper.mapToErrorCode(result.result ?: -1)
       }
     }
   }
@@ -186,8 +204,7 @@ class PlugpagNitro : HybridPlugpagNitroSpec() {
     }
   }
 
-  // Private helper methods - extracted for reusability
-  
+  // Private helper methods
   private fun initializePlugPag() {
     if (!::plugPag.isInitialized) {
       val context = NitroModules.applicationContext as Context

@@ -1,5 +1,10 @@
+import { useEffect } from 'react';
 import { ScrollView, StyleSheet, StatusBar } from 'react-native';
-import { useTransactionEvent } from 'react-native-plugpag-nitro';
+import {
+  useTransactionEvent,
+  setStyleTheme,
+  PlugPagThemes,
+} from 'react-native-plugpag-nitro';
 import { theme } from './constants/theme';
 import { usePaymentOperations } from './hooks/usePaymentOperations';
 import {
@@ -8,6 +13,7 @@ import {
   LoadingIndicator,
   PaymentButtons,
   TransactionInfo,
+  StyleExample,
 } from './components';
 
 export default function App() {
@@ -23,6 +29,19 @@ export default function App() {
 
   // Real-time payment events
   const paymentEvent = useTransactionEvent();
+
+  // Apply dark theme to match app design on startup
+  useEffect(() => {
+    const applyAppTheme = async () => {
+      try {
+        await setStyleTheme(PlugPagThemes.DARK_THEME);
+      } catch (error) {
+        console.warn('Failed to apply theme:', error);
+      }
+    };
+
+    applyAppTheme();
+  }, []);
 
   return (
     <>
@@ -55,6 +74,12 @@ export default function App() {
         />
 
         <TransactionInfo transaction={lastPayment} />
+
+        <StyleExample
+          onThemeApplied={(themeName) =>
+            console.log(`Applied theme: ${themeName}`)
+          }
+        />
       </ScrollView>
     </>
   );

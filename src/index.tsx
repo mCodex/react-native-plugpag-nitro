@@ -5,8 +5,8 @@ import type {
   PlugpagNitro,
   PlugpagInitializationResult,
   PlugpagTransactionResult,
-  PlugpagAbortResult,
   PlugpagConstants,
+  PlugpagStyleData,
   PaymentEvent,
 } from './PlugpagNitro.nitro';
 import {
@@ -28,12 +28,15 @@ export {
 export type {
   PlugpagInitializationResult,
   PlugpagTransactionResult,
-  PlugpagAbortResult,
   PlugpagConstants,
   PlugpagPaymentData,
   PlugpagVoidData,
+  PlugpagStyleData,
   PaymentEvent,
 } from './PlugpagNitro.nitro';
+
+// Export theme utilities
+export { PlugPagThemes, ThemeUtils } from './themes';
 
 const PlugpagNitroModule =
   NitroModules.createHybridObject<PlugpagNitro>('PlugpagNitro');
@@ -192,15 +195,32 @@ export async function refundPayment(options: {
 /**
  * Abort the current ongoing transaction
  */
-export async function doAbort(): Promise<PlugpagAbortResult> {
+export async function doAbort(): Promise<ErrorCode> {
   return safeModuleCall('doAbort', () => PlugpagNitroModule.doAbort());
+}
+
+/**
+ * Set custom style theme for PagBank SDK UI components
+ * Allows customization of colors for modal dialogs, buttons, and text
+ */
+export async function setStyleTheme(
+  styleData: PlugpagStyleData
+): Promise<boolean> {
+  return safeModuleCall('setStyleTheme', () =>
+    PlugpagNitroModule.setStyleTheme(styleData)
+  );
 }
 
 /**
  * Print a custom receipt from file path
  */
-export async function print(filePath: string): Promise<void> {
-  return safeModuleCall('print', () => PlugpagNitroModule.print(filePath));
+export async function print(
+  filePath: string,
+  textSize: number = 20
+): Promise<ErrorCode> {
+  return safeModuleCall('print', () =>
+    PlugpagNitroModule.print(filePath, textSize)
+  );
 }
 
 /**
@@ -230,6 +250,7 @@ export default {
   doPayment,
   refundPayment,
   doAbort,
+  setStyleTheme,
   print,
   reprintCustomerReceipt,
 
