@@ -179,6 +179,148 @@ enum InstallmentType {
 }
 ```
 
+## 🎨 UI Customization & Theming
+
+Customize the appearance of PagBank SDK modal dialogs to match your app's design. The library provides complete control over colors, themes, and UI elements displayed during payment transactions.
+
+<div align="center">
+  <img src="https://github.com/mCodex/react-native-plugpag-nitro/assets/modal-example.png" alt="Customizable Payment Modal" width="400"/>
+  <p><em>Payment modal with custom dark theme matching your app's design</em></p>
+</div>
+
+### ⚡ Quick Theme Setup
+
+```typescript
+import { setStyleTheme } from 'react-native-plugpag-nitro';
+
+// Create and apply a custom theme
+await setStyleTheme({
+  headBackgroundColor: '#1A1A1D',     // Header background
+  headTextColor: '#FFFFFF',           // Header text
+  positiveButtonBackground: '#22C55E', // "Confirm" button color  
+  negativeButtonBackground: '#EF4444', // "Cancel" button color
+  contentTextColor: '#FFFFFF',        // Body text color
+  lineColor: '#71717A'               // Borders and lines
+});
+```
+
+### 🛠️ Custom Theme Creation
+
+Create themes that match your app's design system:
+
+```typescript
+// Create a custom brand-based theme
+const customTheme = {
+  headBackgroundColor: '#00D4FF',      // Your primary brand color
+  headTextColor: '#FFFFFF',            // White text on colored header
+  contentTextColor: '#1A1A1D',         // Dark text for body content
+  positiveButtonBackground: '#00D4FF',  // Consistent brand color
+  negativeButtonBackground: '#EF4444',  // Standard red for cancel
+  lineColor: '#E5E7EB'                 // Light gray for borders
+};
+
+await setStyleTheme(customTheme);
+```
+
+### 🎨 Complete Style Properties
+
+<details>
+<summary><strong>📋 All available style properties</strong></summary>
+
+```typescript
+interface PlugpagStyleData {
+  // Header styling
+  headTextColor?: string;              // Header text color
+  headBackgroundColor?: string;        // Header background color
+  
+  // Content styling  
+  contentTextColor?: string;           // General content text
+  contentTextValue1Color?: string;     // Primary monetary values
+  contentTextValue2Color?: string;     // Secondary monetary values
+  
+  // Button styling
+  positiveButtonTextColor?: string;    // Confirm button text
+  positiveButtonBackground?: string;   // Confirm button background
+  negativeButtonTextColor?: string;    // Cancel button text  
+  negativeButtonBackground?: string;   // Cancel button background
+  genericButtonBackground?: string;    // Generic button background
+  genericButtonTextColor?: string;     // Generic button text
+  
+  // Input field styling
+  genericSmsEditTextBackground?: string; // SMS input background
+  genericSmsEditTextTextColor?: string;  // SMS input text
+  
+  // Interface elements
+  lineColor?: string;                  // Lines, borders, dividers
+}
+```
+
+</details>
+
+### 🔧 Theme Utilities
+
+```typescript
+import { ThemeUtils } from 'react-native-plugpag-nitro';
+
+// Validate theme colors
+const errors = ThemeUtils.validateTheme(myTheme);
+if (errors.length === 0) {
+  await setStyleTheme(myTheme);
+}
+
+// Merge themes
+const customizedTheme = ThemeUtils.mergeThemes(
+  baseTheme,  // Your base theme
+  { positiveButtonBackground: '#FF6B6B' }
+);
+
+// Preview theme colors (for debugging)
+const preview = ThemeUtils.createThemePreview(myTheme);
+console.log(preview); // { headBackgroundColor: '#1A1A1D', ... }
+```
+
+### 💡 Best Practices
+
+- **Apply early**: Set themes during app initialization, before payment operations
+- **Match your design**: Use colors that complement your existing UI  
+- **Accessibility**: Ensure sufficient contrast between text and backgrounds
+- **Validation**: Always validate themes before applying them
+- **Error handling**: Wrap theme operations in try-catch blocks
+
+### 🏗️ Integration Example
+
+```typescript
+import React, { useEffect } from 'react';
+import { setStyleTheme } from 'react-native-plugpag-nitro';
+
+export default function App() {
+  useEffect(() => {
+    // Apply theme matching your app's design
+    const initializeTheme = async () => {
+      try {
+        const customTheme = {
+          headBackgroundColor: '#1A1A1D',
+          headTextColor: '#FFFFFF',
+          positiveButtonBackground: '#22C55E',
+          negativeButtonBackground: '#EF4444'
+        };
+        
+        await setStyleTheme(customTheme);
+        console.log('Theme applied successfully');
+      } catch (error) {
+        console.error('Failed to apply theme:', error);
+      }
+    };
+    
+    initializeTheme();
+  }, []);
+
+  // ... rest of your app
+}
+```
+
+> 📖 **Complete styling guide**: See [STYLING_GUIDE.md](STYLING_GUIDE.md) for detailed documentation and examples.
+
 ## 💡 Usage Examples
 
 ### Complete Payment Flow

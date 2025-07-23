@@ -85,6 +85,23 @@ export interface PlugpagPaymentData {
   userReference?: string;
 }
 
+export interface PlugpagStyleData {
+  headTextColor?: string;
+  headBackgroundColor?: string;
+  contentTextColor?: string;
+  contentTextValue1Color?: string;
+  contentTextValue2Color?: string;
+  positiveButtonTextColor?: string;
+  positiveButtonBackground?: string;
+  negativeButtonTextColor?: string;
+  negativeButtonBackground?: string;
+  genericButtonBackground?: string;
+  genericButtonTextColor?: string;
+  genericSmsEditTextBackground?: string;
+  genericSmsEditTextTextColor?: string;
+  lineColor?: string;
+}
+
 export interface PlugpagTransactionResult {
   result: ErrorCode;
   errorCode?: string;
@@ -198,13 +215,21 @@ export interface PlugpagNitro extends HybridObject<{ android: 'kotlin' }> {
   /**
    * Abort the current ongoing transaction
    */
-  doAbort(): Promise<PlugpagAbortResult>;
+  doAbort(): Promise<ErrorCode>;
 
   /**
-   * Print a custom receipt from file path
-   * @param filePath Path to the image file (PNG/JPEG)
+   * Set custom style theme for PagBank SDK UI components
+   * Allows customization of colors for modal dialogs, buttons, and text
+   * @param styleData Style configuration with color customizations
    */
-  print(filePath: string): Promise<void>;
+  setStyleTheme(styleData: PlugpagStyleData): Promise<boolean>;
+
+  /**
+   * Print from a file path
+   * @param filePath Path to the file to print
+   * @param textSize Text size for printing
+   */
+  print(filePath: string, textSize: number): Promise<ErrorCode>;
 
   /**
    * Reprint the last customer receipt
