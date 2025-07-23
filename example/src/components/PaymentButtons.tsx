@@ -8,7 +8,6 @@ interface PaymentButtonsProps {
   isInitialized: boolean;
   isProcessing: boolean;
   hasLastPayment: boolean;
-  onInitialize: () => void;
   onPayment: (options: {
     amount: number;
     type: any;
@@ -22,7 +21,6 @@ export const PaymentButtons: React.FC<PaymentButtonsProps> = ({
   isInitialized,
   isProcessing,
   hasLastPayment,
-  onInitialize,
   onPayment,
   onRefund,
 }) => {
@@ -42,14 +40,6 @@ export const PaymentButtons: React.FC<PaymentButtonsProps> = ({
 
   return (
     <View style={styles.container}>
-      <Button
-        title="Inicializar Terminal"
-        variant={!isInitialized ? 'success' : 'primary'}
-        onPress={onInitialize}
-        disabled={isProcessing}
-        loading={isProcessing}
-      />
-
       {PAYMENT_BUTTONS.map((buttonConfig) => (
         <Button
           key={buttonConfig.id}

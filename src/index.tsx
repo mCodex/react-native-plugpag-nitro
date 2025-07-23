@@ -36,7 +36,7 @@ export type {
 } from './PlugpagNitro.nitro';
 
 // Export theme utilities
-export { PlugPagThemes, ThemeUtils } from './themes';
+export { ThemeUtils } from './themes';
 
 const PlugpagNitroModule =
   NitroModules.createHybridObject<PlugpagNitro>('PlugpagNitro');

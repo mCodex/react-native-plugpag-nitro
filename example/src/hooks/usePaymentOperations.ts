@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   type PlugpagTransactionResult,
   initializeAndActivatePinPad,
@@ -41,7 +41,7 @@ export const usePaymentOperations = () => {
     }
   }, []);
 
-  const handleInitialize = async (): Promise<void> => {
+  const handleInitialize = useCallback(async (): Promise<void> => {
     await withAsyncOperation(
       async () => {
         const result = await initializeAndActivatePinPad(
@@ -61,7 +61,7 @@ export const usePaymentOperations = () => {
       setIsProcessing,
       (error) => showAlert.error('Error', error.message)
     );
-  };
+  }, []);
 
   const handlePayment = async (options: PaymentOptions): Promise<void> => {
     if (!isInitialized) {

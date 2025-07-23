@@ -1,10 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { ScrollView, StyleSheet, StatusBar } from 'react-native';
-import {
-  useTransactionEvent,
-  setStyleTheme,
-  PlugPagThemes,
-} from 'react-native-plugpag-nitro';
+import { useTransactionEvent, setStyleTheme } from 'react-native-plugpag-nitro';
 import { theme } from './constants/theme';
 import { usePaymentOperations } from './hooks/usePaymentOperations';
 import {
@@ -30,18 +26,56 @@ export default function App() {
   // Real-time payment events
   const paymentEvent = useTransactionEvent();
 
-  // Apply dark theme to match app design on startup
+  // Track if initialization has been attempted to prevent loops
+  const initializationAttempted = useRef(false);
+
+  // Auto-initialize terminal and apply theme on startup
   useEffect(() => {
-    const applyAppTheme = async () => {
+    // Only initialize once and if not already initialized
+    if (initializationAttempted.current || isInitialized) {
+      return;
+    }
+
+    initializationAttempted.current = true;
+
+    const initializeApp = async () => {
+      console.log('🚀 Initializing PlugPag Example App...');
+
       try {
-        await setStyleTheme(PlugPagThemes.DARK_THEME);
+        // First, initialize the terminal
+        console.log('📱 Activating terminal...');
+        await handleInitialize();
+
+        // After successful activation, apply the custom theme
+        console.log('🎨 Applying custom theme...');
+        const appDarkTheme = {
+          headBackgroundColor: '#0A0A0B',
+          headTextColor: '#FFFFFF',
+          contentTextColor: '#F3F4F6',
+          contentTextValue1Color: '#00D4FF',
+          contentTextValue2Color: '#9CA3AF',
+          positiveButtonBackground: '#10B981',
+          positiveButtonTextColor: '#FFFFFF',
+          negativeButtonBackground: '#EF4444',
+          negativeButtonTextColor: '#FFFFFF',
+          genericButtonBackground: '#1F2937',
+          genericButtonTextColor: '#F3F4F6',
+          genericSmsEditTextBackground: '#1F2937',
+          genericSmsEditTextTextColor: '#F3F4F6',
+          lineColor: '#374151',
+        };
+
+        await setStyleTheme(appDarkTheme);
+        console.log('✅ App initialization complete!');
       } catch (error) {
-        console.warn('Failed to apply theme:', error);
+        console.warn('⚠️ App initialization failed:', error);
+        // Reset the flag so user can try manual initialization if needed
+        initializationAttempted.current = false;
       }
     };
 
-    applyAppTheme();
-  }, []);
+    initializeApp();
+  }, [handleInitialize, isInitialized]); // Include dependencies
 
   return (
     <>
@@ -68,7 +102,6 @@ export default function App() {
           isInitialized={isInitialized}
           isProcessing={isProcessing}
           hasLastPayment={!!lastPayment}
-          onInitialize={handleInitialize}
           onPayment={handlePayment}
           onRefund={handleRefund}
         />

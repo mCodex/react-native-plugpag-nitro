@@ -7,11 +7,7 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
-import {
-  setStyleTheme,
-  PlugPagThemes,
-  ThemeUtils,
-} from 'react-native-plugpag-nitro';
+import { setStyleTheme, ThemeUtils } from 'react-native-plugpag-nitro';
 import type { PlugpagStyleData } from 'react-native-plugpag-nitro';
 
 interface StyleExampleProps {
@@ -92,6 +88,82 @@ export const StyleExample: React.FC<StyleExampleProps> = ({
     };
   };
 
+  const createLightTheme = (): PlugpagStyleData => {
+    return {
+      headTextColor: '#1F2937',
+      headBackgroundColor: '#FFFFFF',
+      contentTextColor: '#1F2937',
+      contentTextValue1Color: '#0EA5E9',
+      contentTextValue2Color: '#6B7280',
+      positiveButtonTextColor: '#FFFFFF',
+      positiveButtonBackground: '#10B981',
+      negativeButtonTextColor: '#FFFFFF',
+      negativeButtonBackground: '#EF4444',
+      genericButtonBackground: '#F3F4F6',
+      genericButtonTextColor: '#1F2937',
+      genericSmsEditTextBackground: '#F9FAFB',
+      genericSmsEditTextTextColor: '#1F2937',
+      lineColor: '#E5E7EB',
+    };
+  };
+
+  const createPagBankTheme = (): PlugpagStyleData => {
+    return {
+      headTextColor: '#FFFFFF',
+      headBackgroundColor: '#00A859',
+      contentTextColor: '#1F2937',
+      contentTextValue1Color: '#00A859',
+      contentTextValue2Color: '#6B7280',
+      positiveButtonTextColor: '#FFFFFF',
+      positiveButtonBackground: '#00A859',
+      negativeButtonTextColor: '#6B7280',
+      negativeButtonBackground: '#F3F4F6',
+      genericButtonBackground: '#E5E7EB',
+      genericButtonTextColor: '#1F2937',
+      genericSmsEditTextBackground: '#F9FAFB',
+      genericSmsEditTextTextColor: '#1F2937',
+      lineColor: '#D1D5DB',
+    };
+  };
+
+  const createHighContrastTheme = (): PlugpagStyleData => {
+    return {
+      headTextColor: '#FFFFFF',
+      headBackgroundColor: '#000000',
+      contentTextColor: '#000000',
+      contentTextValue1Color: '#0066CC',
+      contentTextValue2Color: '#333333',
+      positiveButtonTextColor: '#FFFFFF',
+      positiveButtonBackground: '#006600',
+      negativeButtonTextColor: '#FFFFFF',
+      negativeButtonBackground: '#CC0000',
+      genericButtonBackground: '#F0F0F0',
+      genericButtonTextColor: '#000000',
+      genericSmsEditTextBackground: '#FFFFFF',
+      genericSmsEditTextTextColor: '#000000',
+      lineColor: '#000000',
+    };
+  };
+
+  const createPurpleTheme = (): PlugpagStyleData => {
+    return {
+      headTextColor: '#FFFFFF',
+      headBackgroundColor: '#8B5CF6',
+      contentTextColor: '#1F2937',
+      contentTextValue1Color: '#8B5CF6',
+      contentTextValue2Color: '#6B7280',
+      positiveButtonTextColor: '#FFFFFF',
+      positiveButtonBackground: '#8B5CF6',
+      negativeButtonTextColor: '#FFFFFF',
+      negativeButtonBackground: '#EF4444',
+      genericButtonBackground: '#F3F4F6',
+      genericButtonTextColor: '#1F2937',
+      genericSmsEditTextBackground: '#F9FAFB',
+      genericSmsEditTextTextColor: '#1F2937',
+      lineColor: '#E5E7EB',
+    };
+  };
+
   const createPremiumTheme = (): PlugpagStyleData => {
     return {
       headBackgroundColor: '#111827', // Rich dark background
@@ -112,17 +184,17 @@ export const StyleExample: React.FC<StyleExampleProps> = ({
   };
 
   const predefinedThemes = [
-    { key: 'dark', name: 'Dark Theme', theme: PlugPagThemes.DARK_THEME },
-    { key: 'light', name: 'Light Theme', theme: PlugPagThemes.LIGHT_THEME },
+    { key: 'dark', name: 'Dark Theme', theme: createAppMatchingTheme() },
+    { key: 'light', name: 'Light Theme', theme: createLightTheme() },
     {
       key: 'pagbank',
       name: 'PagBank Official',
-      theme: PlugPagThemes.PAGBANK_THEME,
+      theme: createPagBankTheme(),
     },
     {
       key: 'high-contrast',
       name: 'High Contrast',
-      theme: PlugPagThemes.HIGH_CONTRAST_THEME,
+      theme: createHighContrastTheme(),
     },
   ];
 
@@ -130,7 +202,7 @@ export const StyleExample: React.FC<StyleExampleProps> = ({
     {
       key: 'purple',
       name: 'Purple Modern',
-      theme: PlugPagThemes.createMonochromaticTheme('#8B5CF6', true),
+      theme: createPurpleTheme(),
     },
     {
       key: 'app-matching',
@@ -171,8 +243,8 @@ export const StyleExample: React.FC<StyleExampleProps> = ({
   };
 
   useEffect(() => {
-    applyTheme(PlugPagThemes.DARK_THEME, 'dark');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Note: Theme is now applied automatically by App.tsx on startup
+    // This component only handles manual theme switching
   }, []);
 
   return (
@@ -185,9 +257,9 @@ export const StyleExample: React.FC<StyleExampleProps> = ({
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Predefined Themes</Text>
+        <Text style={styles.sectionTitle}>Popular Themes</Text>
         <Text style={styles.sectionDescription}>
-          Choose from ready-to-use themes optimized for different use cases
+          Common theme configurations for different app styles
         </Text>
 
         <View style={styles.themeGrid}>
@@ -206,9 +278,9 @@ export const StyleExample: React.FC<StyleExampleProps> = ({
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Custom Themes</Text>
+        <Text style={styles.sectionTitle}>Creative Themes</Text>
         <Text style={styles.sectionDescription}>
-          Creative themes showcasing the flexibility of the theming system
+          Advanced theme configurations showcasing customization possibilities
         </Text>
 
         <View style={styles.themeGrid}>
@@ -229,7 +301,8 @@ export const StyleExample: React.FC<StyleExampleProps> = ({
       <View style={styles.infoSection}>
         <Text style={styles.infoTitle}>💡 How it Works</Text>
         <Text style={styles.infoText}>
-          • Themes are applied globally to all PagBank SDK modals{'\n'}• Colors
+          • All themes are created within this app, not from the library{'\n'}•
+          Themes are applied globally to all PagBank SDK modals{'\n'}• Colors
           automatically adapt to modal components{'\n'}• Validation ensures
           theme compatibility{'\n'}• Changes take effect immediately for new
           modals

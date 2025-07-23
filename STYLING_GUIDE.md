@@ -1,20 +1,18 @@
+````markdown
 # PagBank SDK UI Customization
 
 This document explains how to customize the appearance of PagBank SDK modal dialogs, buttons, and text using the new styling API.
 
 ## Overview
 
-The PagBank SDK displays modal dialogs during payment transactions (like the one shown in your screenshot). You can now customize the colors and appearance of these dialogs to match your app's design.
+The PagBank SDK displays modal dialogs during payment transactions. You can customize the colors and appearance of these dialogs to match your app's design by creating custom themes within your application.
 
 ## Quick Start
 
 ```typescript
-import PlugpagNitro, { PlugPagThemes, setStyleTheme } from 'react-native-plugpag-nitro';
+import { setStyleTheme } from 'react-native-plugpag-nitro';
 
-// Apply a predefined dark theme
-await setStyleTheme(PlugPagThemes.DARK_THEME);
-
-// Or create a custom theme
+// Create and apply a custom theme
 await setStyleTheme({
   headBackgroundColor: '#1A1A1D',
   headTextColor: '#FFFFFF',
@@ -51,54 +49,74 @@ await setStyleTheme({
 ### Interface Elements
 - `lineColor` - Color for lines, borders, and dividers
 
-## Predefined Themes
+## Creating Custom Themes
 
-### Dark Theme (Matching Your App)
+All themes are created within your application. The library provides utilities to help validate and manage themes, but no predefined themes are included.
+
+### Example: Dark Theme
 ```typescript
-import { PlugPagThemes } from 'react-native-plugpag-nitro';
+const darkTheme = {
+  headTextColor: '#FFFFFF',
+  headBackgroundColor: '#0A0A0B',
+  contentTextColor: '#F3F4F6',
+  contentTextValue1Color: '#00D4FF',
+  contentTextValue2Color: '#9CA3AF',
+  positiveButtonBackground: '#10B981',
+  positiveButtonTextColor: '#FFFFFF',
+  negativeButtonBackground: '#EF4444',
+  negativeButtonTextColor: '#FFFFFF',
+  genericButtonBackground: '#1F2937',
+  genericButtonTextColor: '#F3F4F6',
+  genericSmsEditTextBackground: '#1F2937',
+  genericSmsEditTextTextColor: '#F3F4F6',
+  lineColor: '#374151',
+};
 
-await setStyleTheme(PlugPagThemes.DARK_THEME);
+await setStyleTheme(darkTheme);
 ```
 
-### Light Theme
+### Example: Light Theme
 ```typescript
-await setStyleTheme(PlugPagThemes.LIGHT_THEME);
+const lightTheme = {
+  headTextColor: '#1F2937',
+  headBackgroundColor: '#FFFFFF',
+  contentTextColor: '#1F2937',
+  contentTextValue1Color: '#0EA5E9',
+  contentTextValue2Color: '#6B7280',
+  positiveButtonTextColor: '#FFFFFF',
+  positiveButtonBackground: '#10B981',
+  negativeButtonTextColor: '#FFFFFF',
+  negativeButtonBackground: '#EF4444',
+  genericButtonBackground: '#F3F4F6',
+  genericButtonTextColor: '#1F2937',
+  genericSmsEditTextBackground: '#F9FAFB',
+  genericSmsEditTextTextColor: '#1F2937',
+  lineColor: '#E5E7EB',
+};
+
+await setStyleTheme(lightTheme);
 ```
 
-### PagBank Official Theme
+### Example: Brand-Based Theme
 ```typescript
-await setStyleTheme(PlugPagThemes.PAGBANK_THEME);
-```
+const brandTheme = {
+  headTextColor: '#FFFFFF',
+  headBackgroundColor: '#7C3AED', // Your brand purple
+  contentTextColor: '#1F2937',
+  contentTextValue1Color: '#7C3AED',
+  contentTextValue2Color: '#6B7280',
+  positiveButtonTextColor: '#FFFFFF',
+  positiveButtonBackground: '#7C3AED',
+  negativeButtonTextColor: '#FFFFFF',
+  negativeButtonBackground: '#EF4444',
+  genericButtonBackground: '#F3F4F6',
+  genericButtonTextColor: '#1F2937',
+  genericSmsEditTextBackground: '#F9FAFB',
+  genericSmsEditTextTextColor: '#1F2937',
+  lineColor: '#E5E7EB',
+};
 
-### High Contrast Theme (Accessibility)
-```typescript
-await setStyleTheme(PlugPagThemes.HIGH_CONTRAST_THEME);
-```
-
-## Custom Theme Creation
-
-### Brand-Based Theme
-```typescript
-import { PlugPagThemes } from 'react-native-plugpag-nitro';
-
-const customTheme = PlugPagThemes.createCustomTheme(
-  '#00D4FF', // Primary brand color
-  '#1A1A1D', // Background color
-  '#FFFFFF', // Text color
-  true       // Use dark theme as base
-);
-
-await setStyleTheme(customTheme);
-```
-
-### Monochromatic Theme
-```typescript
-const monoTheme = PlugPagThemes.createMonochromaticTheme(
-  '#7C3AED', // Base purple color
-  true       // Dark variant
-);
-
-await setStyleTheme(monoTheme);
+await setStyleTheme(brandTheme);
 ```
 
 ## Usage in Your App
@@ -106,14 +124,27 @@ await setStyleTheme(monoTheme);
 ### Apply Theme on App Initialization
 ```typescript
 import { useEffect } from 'react';
-import { setStyleTheme, PlugPagThemes } from 'react-native-plugpag-nitro';
+import { setStyleTheme } from 'react-native-plugpag-nitro';
 
 export default function App() {
   useEffect(() => {
-    // Apply dark theme to match your app
-    setStyleTheme(PlugPagThemes.DARK_THEME)
-      .then(() => console.log('Theme applied successfully'))
-      .catch(error => console.error('Failed to apply theme:', error));
+    const initializeTheme = async () => {
+      try {
+        const customTheme = {
+          headBackgroundColor: '#1A1A1D',
+          headTextColor: '#FFFFFF',
+          positiveButtonBackground: '#22C55E',
+          // ... other properties
+        };
+        
+        await setStyleTheme(customTheme);
+        console.log('Theme applied successfully');
+      } catch (error) {
+        console.error('Failed to apply theme:', error);
+      }
+    };
+
+    initializeTheme();
   }, []);
 
   // ... rest of your app
@@ -123,24 +154,40 @@ export default function App() {
 ### Dynamic Theme Switching
 ```typescript
 import { useState } from 'react';
-import { setStyleTheme, PlugPagThemes } from 'react-native-plugpag-nitro';
+import { setStyleTheme } from 'react-native-plugpag-nitro';
 
 function ThemeSelector() {
   const [currentTheme, setCurrentTheme] = useState('dark');
 
+  const createDarkTheme = () => ({
+    headBackgroundColor: '#0A0A0B',
+    headTextColor: '#FFFFFF',
+    positiveButtonBackground: '#10B981',
+    // ... other properties
+  });
+
+  const createLightTheme = () => ({
+    headBackgroundColor: '#FFFFFF',
+    headTextColor: '#1F2937',
+    positiveButtonBackground: '#10B981',
+    // ... other properties
+  });
+
   const switchTheme = async (themeName: string) => {
     try {
+      let theme;
       switch (themeName) {
         case 'dark':
-          await setStyleTheme(PlugPagThemes.DARK_THEME);
+          theme = createDarkTheme();
           break;
         case 'light':
-          await setStyleTheme(PlugPagThemes.LIGHT_THEME);
+          theme = createLightTheme();
           break;
-        case 'pagbank':
-          await setStyleTheme(PlugPagThemes.PAGBANK_THEME);
-          break;
+        default:
+          return;
       }
+      
+      await setStyleTheme(theme);
       setCurrentTheme(themeName);
     } catch (error) {
       console.error('Failed to switch theme:', error);
@@ -151,7 +198,6 @@ function ThemeSelector() {
     <View>
       <Button title="Dark Theme" onPress={() => switchTheme('dark')} />
       <Button title="Light Theme" onPress={() => switchTheme('light')} />
-      <Button title="PagBank Theme" onPress={() => switchTheme('pagbank')} />
     </View>
   );
 }
@@ -180,20 +226,42 @@ if (errors.length > 0) {
 
 ## Merging Themes
 
-Extend existing themes with custom overrides:
+Extend base themes with custom overrides:
 
 ```typescript
-import { ThemeUtils, PlugPagThemes } from 'react-native-plugpag-nitro';
+import { ThemeUtils } from 'react-native-plugpag-nitro';
 
-const customizedDarkTheme = ThemeUtils.mergeThemes(
-  PlugPagThemes.DARK_THEME,
-  {
-    positiveButtonBackground: '#FF6B6B', // Custom red for confirm buttons
-    negativeButtonBackground: '#4ECDC4', // Custom teal for cancel buttons
-  }
-);
+const baseTheme = {
+  headBackgroundColor: '#0A0A0B',
+  headTextColor: '#FFFFFF',
+  positiveButtonBackground: '#10B981',
+  // ... other properties
+};
 
-await setStyleTheme(customizedDarkTheme);
+const customizedTheme = ThemeUtils.mergeThemes(baseTheme, {
+  positiveButtonBackground: '#FF6B6B', // Custom red for confirm buttons
+  negativeButtonBackground: '#4ECDC4', // Custom teal for cancel buttons
+});
+
+await setStyleTheme(customizedTheme);
+```
+
+## Theme Utility Functions
+
+The library provides utility functions to help with theme management:
+
+```typescript
+import { ThemeUtils } from 'react-native-plugpag-nitro';
+
+// Validate theme colors
+const errors = ThemeUtils.validateTheme(myTheme);
+
+// Merge themes safely
+const mergedTheme = ThemeUtils.mergeThemes(baseTheme, overrides);
+
+// Create theme preview (for debugging)
+const preview = ThemeUtils.createThemePreview(myTheme);
+console.log(preview); // Shows all color values
 ```
 
 ## Color Format
@@ -201,7 +269,6 @@ await setStyleTheme(customizedDarkTheme);
 All colors should be provided as hex strings:
 - 6-digit hex: `#FFFFFF` (white)
 - 3-digit hex: `#FFF` (white, shorthand)
-- With alpha: `#FFFFFF80` (white with 50% opacity)
 
 Invalid formats will be ignored and default colors will be used.
 
@@ -217,38 +284,57 @@ Invalid formats will be ignored and default colors will be used.
 
 5. **Handle errors gracefully**: Always wrap theme application in try-catch blocks.
 
-## Example: Matching Your Current App Theme
+6. **Create theme factories**: Use functions to generate consistent themes across your app.
 
-Based on your app's dark theme, here's a configuration that would match:
+## Example: App-Matching Theme Factory
+
+Create reusable theme generators in your app:
 
 ```typescript
-const appMatchingTheme = {
-  // Header
-  headBackgroundColor: '#1A1A1D',
-  headTextColor: '#FFFFFF',
+// themes.ts
+export const createAppTheme = (isDark: boolean = true) => {
+  if (isDark) {
+    return {
+      headBackgroundColor: '#0A0A0B',
+      headTextColor: '#FFFFFF',
+      contentTextColor: '#F3F4F6',
+      contentTextValue1Color: '#00D4FF',
+      contentTextValue2Color: '#9CA3AF',
+      positiveButtonBackground: '#10B981',
+      positiveButtonTextColor: '#FFFFFF',
+      negativeButtonBackground: '#EF4444',
+      negativeButtonTextColor: '#FFFFFF',
+      genericButtonBackground: '#1F2937',
+      genericButtonTextColor: '#F3F4F6',
+      genericSmsEditTextBackground: '#1F2937',
+      genericSmsEditTextTextColor: '#F3F4F6',
+      lineColor: '#374151',
+    };
+  }
   
-  // Content
-  contentTextColor: '#FFFFFF',
-  contentTextValue1Color: '#00D4FF', // Your primary blue
-  contentTextValue2Color: '#A1A1AA',
-  
-  // Buttons (matching the modal in your screenshot)
-  positiveButtonBackground: '#22C55E', // Green for "Imprimir"
-  positiveButtonTextColor: '#FFFFFF',
-  negativeButtonBackground: '#2A2A2F', // Dark for "Cancelar" 
-  negativeButtonTextColor: '#00D4FF',  // Blue text
-  genericButtonBackground: '#22C55E',  // Green for "Enviar SMS"
-  genericButtonTextColor: '#FFFFFF',
-  
-  // SMS input
-  genericSmsEditTextBackground: '#2A2A2F',
-  genericSmsEditTextTextColor: '#FFFFFF',
-  
-  // Lines and borders
-  lineColor: '#71717A',
+  return {
+    headBackgroundColor: '#FFFFFF',
+    headTextColor: '#1F2937',
+    contentTextColor: '#1F2937',
+    contentTextValue1Color: '#0EA5E9',
+    contentTextValue2Color: '#6B7280',
+    positiveButtonBackground: '#10B981',
+    positiveButtonTextColor: '#FFFFFF',
+    negativeButtonBackground: '#EF4444',
+    negativeButtonTextColor: '#FFFFFF',
+    genericButtonBackground: '#F3F4F6',
+    genericButtonTextColor: '#1F2937',
+    genericSmsEditTextBackground: '#F9FAFB',
+    genericSmsEditTextTextColor: '#1F2937',
+    lineColor: '#E5E7EB',
+  };
 };
 
-await setStyleTheme(appMatchingTheme);
+// Usage
+await setStyleTheme(createAppTheme(true)); // Dark theme
+await setStyleTheme(createAppTheme(false)); // Light theme
 ```
 
-This configuration will make the PagBank modal dialogs blend seamlessly with your app's existing dark theme design.
+This approach gives you complete control over your app's payment modal styling while maintaining consistency with your app's design system.
+
+````

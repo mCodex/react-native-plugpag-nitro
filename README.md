@@ -191,12 +191,9 @@ Customize the appearance of PagBank SDK modal dialogs to match your app's design
 ### ⚡ Quick Theme Setup
 
 ```typescript
-import { setStyleTheme, PlugPagThemes } from 'react-native-plugpag-nitro';
+import { setStyleTheme } from 'react-native-plugpag-nitro';
 
-// Apply predefined dark theme (matches the modal above)
-await setStyleTheme(PlugPagThemes.DARK_THEME);
-
-// Or create a custom theme
+// Create and apply a custom theme
 await setStyleTheme({
   headBackgroundColor: '#1A1A1D',     // Header background
   headTextColor: '#FFFFFF',           // Header text
@@ -207,31 +204,20 @@ await setStyleTheme({
 });
 ```
 
-### 🎯 Available Themes
-
-| Theme | Description | Use Case |
-|-------|-------------|----------|
-| `DARK_THEME` | Dark theme matching modern apps | Apps with dark UI |
-| `LIGHT_THEME` | Clean light theme | Apps with light UI |  
-| `PAGBANK_THEME` | Official PagBank colors | Brand consistency |
-| `HIGH_CONTRAST_THEME` | Accessibility-focused | Better accessibility |
-
 ### 🛠️ Custom Theme Creation
 
-```typescript
-// Brand-based theme
-const customTheme = PlugPagThemes.createCustomTheme(
-  '#00D4FF',  // Your primary brand color
-  '#1A1A1D',  // Background color
-  '#FFFFFF',  // Text color
-  true        // Use dark theme as base
-);
+Create themes that match your app's design system:
 
-// Monochromatic theme
-const monoTheme = PlugPagThemes.createMonochromaticTheme(
-  '#7C3AED',  // Base purple color
-  true        // Dark variant
-);
+```typescript
+// Create a custom brand-based theme
+const customTheme = {
+  headBackgroundColor: '#00D4FF',      // Your primary brand color
+  headTextColor: '#FFFFFF',            // White text on colored header
+  contentTextColor: '#1A1A1D',         // Dark text for body content
+  positiveButtonBackground: '#00D4FF',  // Consistent brand color
+  negativeButtonBackground: '#EF4444',  // Standard red for cancel
+  lineColor: '#E5E7EB'                 // Light gray for borders
+};
 
 await setStyleTheme(customTheme);
 ```
@@ -284,7 +270,7 @@ if (errors.length === 0) {
 
 // Merge themes
 const customizedTheme = ThemeUtils.mergeThemes(
-  PlugPagThemes.DARK_THEME,
+  baseTheme,  // Your base theme
   { positiveButtonBackground: '#FF6B6B' }
 );
 
@@ -305,14 +291,21 @@ console.log(preview); // { headBackgroundColor: '#1A1A1D', ... }
 
 ```typescript
 import React, { useEffect } from 'react';
-import { setStyleTheme, PlugPagThemes } from 'react-native-plugpag-nitro';
+import { setStyleTheme } from 'react-native-plugpag-nitro';
 
 export default function App() {
   useEffect(() => {
     // Apply theme matching your app's design
     const initializeTheme = async () => {
       try {
-        await setStyleTheme(PlugPagThemes.DARK_THEME);
+        const customTheme = {
+          headBackgroundColor: '#1A1A1D',
+          headTextColor: '#FFFFFF',
+          positiveButtonBackground: '#22C55E',
+          negativeButtonBackground: '#EF4444'
+        };
+        
+        await setStyleTheme(customTheme);
         console.log('Theme applied successfully');
       } catch (error) {
         console.error('Failed to apply theme:', error);
