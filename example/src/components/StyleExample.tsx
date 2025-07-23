@@ -242,11 +242,6 @@ export const StyleExample: React.FC<StyleExampleProps> = ({
     }
   };
 
-  useEffect(() => {
-    // Note: Theme is now applied automatically by App.tsx on startup
-    // This component only handles manual theme switching
-  }, []);
-
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
