@@ -129,6 +129,6 @@ dependencies {
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
   implementation project(":react-native-nitro-modules")
   
-  implementation "br.com.uol.pagseguro.plugpagservice.wrapper:wrapper:1.30.51"
+  implementation "br.com.uol.pagseguro.plugpagservice.wrapper:wrapper:1.30.52"
 }
 
